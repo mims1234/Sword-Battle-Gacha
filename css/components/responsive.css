@@ -26,10 +26,13 @@
 
     .app-container {
         width: 100vw;
-        height: 100dvh;
+        height: 100svh;
+        max-height: 100svh;
         border-radius: 0;
         padding: 6px;
         gap: 6px;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
     }
 
     .game-header {
@@ -69,9 +72,10 @@
 
     .main-layout {
         grid-template-columns: 1fr;
-        grid-template-rows: minmax(180px, 1fr) minmax(130px, 0.6fr);
+        grid-template-rows: minmax(130px, 1fr) minmax(92px, 0.48fr);
         position: relative;
         gap: 6px;
+        min-height: 0;
     }
 
     .sidebar-left {
@@ -201,9 +205,10 @@
     .game-footer {
         flex-direction: column;
         gap: 4px;
-        padding: 4px 8px;
+        padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
         font-size: 10px;
-        min-height: 48px;
+        min-height: 44px;
+        flex-shrink: 0;
     }
 
     .footer-info,
