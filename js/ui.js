@@ -86,8 +86,9 @@
   };
 
   G.updateOpenChestButtonState = function () {
-    G.els.pullButton.disabled = G.gameState.chests <= 0;
-    G.els.forgeButton.disabled = G.getForgeableSwords().length === 0;
+    if (G.els.pullButton) G.els.pullButton.disabled = G.gameState.chests <= 0;
+    if (G.els.forgeButton)
+      G.els.forgeButton.disabled = G.getForgeableSwords().length === 0;
   };
 
   G.updatePrestigeUI = function () {

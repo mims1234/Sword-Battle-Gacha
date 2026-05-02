@@ -41,7 +41,7 @@
   $.pullButton.addEventListener("click", G.doGachaPull);
 
   // ---------- FORGE ----------
-  $.forgeButton.addEventListener("click", G.openForgeModal);
+  if ($.forgeButton) $.forgeButton.addEventListener("click", G.openForgeModal);
   document
     .getElementById("forgeClose")
     .addEventListener("click", G.closeForgeModal);

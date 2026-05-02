@@ -11,9 +11,10 @@
 .arena-display {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 14px;
     flex: 1;
     justify-content: center;
+    min-width: 0;
 }
 
 .arena-slot {
@@ -118,6 +119,7 @@
     );
     border-color: var(--accent-copper);
     animation: none;
+    min-width: 150px;
 }
 
 .btn-arena-forge:hover:not(:disabled) {

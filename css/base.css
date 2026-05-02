@@ -10,7 +10,7 @@ body {
   font-family: var(--font-body);
   margin: 0;
   padding: 8px;
-  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -19,8 +19,8 @@ body {
 }
 
 .app-container {
-  width: 100vw;
-  height: 100vh;
+  width: min(100vw - 16px, 1440px);
+  height: calc(100vh - 16px);
   background: var(--bg-obsidian);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg), var(--shadow-ember);
