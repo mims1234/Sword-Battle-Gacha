@@ -2,13 +2,15 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 12px;
     padding: 12px;
     overflow-y: auto;
 }
 
 .gacha-section {
+    margin-top: auto;
+    margin-bottom: auto;
     text-align: center;
     padding: 20px;
     background:
