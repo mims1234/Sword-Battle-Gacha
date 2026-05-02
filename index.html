@@ -55,6 +55,11 @@
             </header>
 
             <div class="arena-bar">
+                <div class="arena-controls">
+                    <button id="forgeButton" class="btn-arena btn-arena-forge">
+                        Forge
+                    </button>
+                </div>
                 <div class="arena-display">
                     <div class="arena-slot current-monster-display">
                         <div class="slot-label">Foe</div>
@@ -101,11 +106,12 @@
                     <div id="collection" class="collection">
                         <div id="allCollection"></div>
                     </div>
-                    <div class="panel-actions">
-                        <button id="forgeButton" class="btn-sm btn-copper">
-                            Forge
-                        </button>
-                        <button id="bestiaryButton" class="btn-sm btn-iron">
+                    <div class="panel-actions" style="justify-content: center">
+                        <button
+                            id="bestiaryButton"
+                            class="btn-sm btn-iron"
+                            style="width: 100%"
+                        >
                             Bestiary
                         </button>
                     </div>
