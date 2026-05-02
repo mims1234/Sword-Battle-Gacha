@@ -1,0 +1,146 @@
+/* Tablet */
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 220px 1fr 200px;
+  }
+
+  .game-title { font-size: 20px; }
+  .brand-rune { font-size: 22px; }
+
+  #allCollection {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  body { padding: 4px; }
+
+  .app-container { padding: 6px; gap: 4px; }
+
+  .game-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 8px;
+    min-height: auto;
+  }
+
+  .header-brand { gap: 4px; }
+  .game-title { font-size: 16px; }
+  .brand-rune { font-size: 16px; display: none; }
+
+  .header-progress { order: 3; width: 100%; }
+  .header-stats { gap: 8px; }
+  .stat-block { font-size: 13px; }
+
+  .main-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    position: relative;
+  }
+
+  .sidebar-left {
+    position: fixed;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 100;
+    border-radius: 0;
+    transition: left 0.3s ease;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar-left.open {
+    left: 0;
+  }
+
+  .center-panel {
+    padding: 8px;
+    grid-row: 1;
+  }
+
+  .gacha-section {
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .btn-forge {
+    padding: 10px 20px;
+    font-size: 16px;
+    min-width: 120px;
+  }
+
+  #result { min-height: 140px; }
+
+  .menu-button {
+    display: block;
+    position: fixed;
+    top: 8px;
+    right: 8px;
+    z-index: 50;
+    background: var(--bg-stone);
+    border: var(--border-iron);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 18px;
+    color: #ccc;
+  }
+
+  /* Mobile overlay */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    display: none;
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  .arena-bar {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .arena-slot {
+    width: 56px;
+    height: 56px;
+  }
+
+  .arena-slot canvas { width: 40px; height: 40px; }
+
+  .vs-text { font-size: 20px; }
+
+  .btn-arena {
+    padding: 6px 14px;
+    font-size: 14px;
+    min-width: 80px;
+  }
+
+  .slot-label { display: none; }
+
+  .game-footer {
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .overlay-container {
+    width: 90vw;
+    height: 150px;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .bestiary-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    padding: 8px;
+  }
+}

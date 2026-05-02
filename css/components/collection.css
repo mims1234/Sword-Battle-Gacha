@@ -1,0 +1,181 @@
+.sidebar-left {
+  background: var(--bg-iron);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--border-iron);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.15);
+}
+
+.panel-header h2 {
+  font-size: 16px;
+  color: var(--accent-copper);
+  letter-spacing: 1px;
+}
+
+.collection-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #666;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #999;
+}
+
+.filter-btn[data-filter="common"]:not(.active) { color: var(--common); }
+.filter-btn[data-filter="rare"]:not(.active) { color: var(--rare); }
+.filter-btn[data-filter="epic"]:not(.active) { color: var(--epic); }
+.filter-btn[data-filter="legendary"]:not(.active) { color: var(--legendary); }
+
+.filter-btn.active {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: var(--accent-ember);
+  color: #fff;
+}
+
+.filter-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.05);
+}
+
+.collection {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+#allCollection {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 2px;
+  align-content: start;
+}
+
+.sword-item {
+  position: relative;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.sword-item canvas {
+  image-rendering: pixelated;
+  width: 40px;
+  height: 40px;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.sword-item:hover {
+  transform: translateY(-3px);
+  z-index: 10;
+}
+
+.sword-item:hover canvas {
+  transform: scale(1.15);
+}
+
+.sword-item:active {
+  transform: scale(0.95);
+}
+
+.sword-item.common {
+  background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+  border-color: rgba(120, 113, 108, 0.2);
+}
+
+.sword-item.rare {
+  background: linear-gradient(135deg, #0a1a2a, #0d2a3a);
+  border-color: rgba(6, 182, 212, 0.25);
+  box-shadow: 0 0 8px rgba(6, 182, 212, 0.1);
+}
+
+.sword-item.epic {
+  background: linear-gradient(135deg, #1a0a2a, #2a0d3a);
+  border-color: rgba(168, 85, 247, 0.25);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+}
+
+.sword-item.legendary {
+  background: linear-gradient(135deg, #2a1a00, #3a2500);
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2), inset 0 0 15px rgba(245, 158, 11, 0.05);
+  animation: legendary-item-glow 3s ease-in-out infinite;
+}
+
+@keyframes legendary-item-glow {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.3); }
+  50% { border-color: rgba(245, 158, 11, 0.6); }
+}
+
+.sword-item.locked {
+  opacity: 0.35;
+  filter: grayscale(1) brightness(0.4);
+}
+
+.sword-item.active {
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sword-item.active canvas {
+  transform: scale(1.1);
+  filter: brightness(1.3);
+}
+
+.sword-uses-badge {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 10px;
+  font-weight: bold;
+  font-family: var(--font-mono);
+  color: var(--accent-copper);
+  z-index: 2;
+  line-height: 1;
+}
+
+.sword-uses-badge {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(249, 115, 22, 0.1);
+}

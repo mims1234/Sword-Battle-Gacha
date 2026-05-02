@@ -1,0 +1,204 @@
+.ambient-ember {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.ember-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: radial-gradient(circle, var(--accent-ember), transparent);
+    border-radius: 50%;
+    opacity: 0;
+    animation: ember-rise linear infinite;
+}
+
+@keyframes ember-rise {
+    0% {
+        transform: translateY(100vh) translateX(0) scale(0.5);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 0.6;
+        transform: translateY(50vh) translateX(30px) scale(1);
+    }
+    90% {
+        opacity: 0.2;
+    }
+    100% {
+        transform: translateY(-10vh) translateX(-20px) scale(0.3);
+        opacity: 0;
+    }
+}
+
+.ambient-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(
+            ellipse 600px 400px at 80% 20%,
+            rgba(168, 85, 247, 0.06),
+            transparent
+        ),
+        radial-gradient(
+            ellipse 500px 500px at 20% 80%,
+            rgba(249, 115, 22, 0.05),
+            transparent
+        ),
+        radial-gradient(
+            ellipse 700px 300px at 50% 100%,
+            rgba(234, 88, 12, 0.04),
+            transparent
+        );
+}
+
+.stone-texture {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.03;
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 255, 255, 0.03) 2px,
+            rgba(255, 255, 255, 0.03) 3px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 3px,
+            rgba(255, 255, 255, 0.02) 3px,
+            rgba(255, 255, 255, 0.02) 4px
+        );
+}
+
+.forge-pulse {
+    position: relative;
+    animation: forge-glow-pulse 3s ease-in-out infinite;
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.1);
+}
+
+@keyframes forge-glow-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 15px rgba(249, 115, 22, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(249, 115, 22, 0.3);
+    }
+}
+
+.floating-dmg {
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 100;
+    animation: dmg-float 1s ease-out forwards;
+}
+
+.floating-dmg.crit {
+    font-size: 36px;
+    text-shadow:
+        0 0 20px var(--accent-blaze),
+        0 0 40px var(--accent-ember);
+}
+
+@keyframes dmg-float {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-60px) scale(1.5);
+    }
+}
+
+.monster-hp-bar {
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 64px;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid rgba(120, 113, 108, 0.3);
+}
+
+.monster-hp-fill {
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        var(--accent-blaze),
+        var(--accent-ember)
+    );
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.prestige-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: linear-gradient(
+        135deg,
+        var(--accent-copper),
+        var(--accent-ember)
+    );
+    color: #fff;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-display);
+    font-size: 12px;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.rarity-flash {
+    animation: rarity-flash 0.6s ease-out;
+}
+
+@keyframes rarity-flash {
+    0% {
+        filter: brightness(2);
+        transform: scale(1.1);
+    }
+    100% {
+        filter: brightness(1);
+        transform: scale(1);
+    }
+}
+
+.combo-indicator {
+    position: absolute;
+    top: -20px;
+    right: 0;
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--accent-ember);
+    text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+    animation: combo-pulse 1s ease-in-out infinite;
+}
+
+@keyframes combo-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}

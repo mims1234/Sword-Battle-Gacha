@@ -1,0 +1,137 @@
+.arena-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  background: linear-gradient(180deg, var(--bg-iron), var(--bg-stone));
+  border-radius: var(--radius-md);
+  border: var(--border-iron);
+}
+
+.arena-display {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+}
+
+.arena-slot {
+  width: 80px;
+  height: 80px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid rgba(120, 113, 108, 0.2);
+  transition: all 0.3s ease;
+}
+
+.arena-slot canvas {
+  image-rendering: pixelated;
+  width: 64px;
+  height: 64px;
+}
+
+.slot-label {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-family: var(--font-display);
+  color: rgba(255,255,255,0.4);
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+
+.vs-text {
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--accent-blaze);
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.4), 0 0 40px rgba(239, 68, 68, 0.2);
+  animation: vs-pulse 2s ease-in-out infinite;
+}
+
+@keyframes vs-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.arena-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-arena {
+  padding: 8px 24px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  background: linear-gradient(135deg, var(--accent-smolder), var(--accent-blaze));
+  border: 1px solid var(--accent-blaze);
+  border-radius: var(--radius-md);
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(0,0,0,0.5);
+  animation: arena-btn-pulse 2s ease-in-out infinite;
+  min-width: 120px;
+}
+
+.btn-arena:disabled {
+  animation: none;
+  background: var(--bg-stone);
+  border-color: rgba(120, 113, 108, 0.3);
+  color: #666;
+}
+
+.btn-arena:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-rust), var(--accent-blaze));
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes arena-btn-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.4); }
+}
+
+.current-monster-display.defeated::after {
+  content: '❌';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 32px;
+  color: #ff0000;
+  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  animation: crossFadeIn 0.3s ease-out;
+}
+
+.difficulty-1 { box-shadow: 0 0 8px rgba(40,53,147,0.3); }
+.difficulty-2 { box-shadow: 0 0 10px rgba(0,77,64,0.35); }
+.difficulty-3 { box-shadow: 0 0 12px rgba(26,35,126,0.4); }
+.difficulty-4 { box-shadow: 0 0 14px rgba(74,20,140,0.45); }
+.difficulty-5 { box-shadow: 0 0 16px rgba(183,28,28,0.5); }
+
+.overlay-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 200px;
+  z-index: 500;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-container > * {
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+}
