@@ -447,6 +447,8 @@
       return;
     }
     G.els.achievementsList.innerHTML = "";
+    G.currentFeatFilter = G.currentFeatFilter || "all";
+
     monsters.forEach((type) => {
       const kills = G.gameState.monsterKills[type];
       const tiers = Object.keys(G.achievementTiers)
@@ -455,6 +457,9 @@
       tiers.forEach((tier) => {
         const data = G.achievementTiers[tier];
         const complete = kills >= tier;
+
+        if (G.currentFeatFilter === "completed" && !complete) return;
+
         const progress = Math.min((kills / tier) * 100, 100);
         const card = document.createElement("div");
         card.className = "achievement-card";
@@ -521,8 +526,8 @@
 
   // ---------- FORGE ----------
   G.openForgeModal = function () {
-    G.forgeSlots = [];
-    G.renderForgeSlots();
+    G.forgeSelectedSword = null;
+    G.renderForgeSelection();
     document.getElementById("forgeModal").style.display = "flex";
   };
 
@@ -530,84 +535,94 @@
     document.getElementById("forgeModal").style.display = "none";
   };
 
-  G.renderForgeSlots = function () {
-    const slotsDiv = document.getElementById("forgeSlots");
-    const executeBtn = document.getElementById("forgeExecute");
-    slotsDiv.innerHTML = "";
+  G.renderForgeSelection = function () {
+    const grid = document.getElementById("forgeSelectionGrid");
+    const actionArea = document.getElementById("forgeActionArea");
     const avail = G.getForgeableSwords();
 
-    for (let i = 0; i < 3; i++) {
-      const slot = document.createElement("div");
-      slot.className = `forge-slot ${G.forgeSlots[i] ? "filled" : ""}`;
-      if (G.forgeSlots[i]) {
-        const sw = G.forgeSlots[i];
-        const c = document.createElement("canvas");
-        c.width = G.scaledW;
-        c.height = G.scaledH;
-        const ctx = c.getContext("2d");
-        const row = Math.floor(sw.index / G.spritesPerRow);
-        const col = sw.index % G.spritesPerRow;
-        ctx.drawImage(
-          G.spriteSheet,
-          col * G.spriteWidth,
-          row * G.spriteHeight,
-          G.spriteWidth,
-          G.spriteHeight,
-          0,
-          0,
-          G.scaledW,
-          G.scaledH,
-        );
-        slot.appendChild(c);
-      } else {
-        slot.textContent = "+";
-      }
-      if (!G.forgeSlots[i]) {
-        slot.addEventListener("click", () => {
-          if (avail.length === 0) {
-            G.showNotification("No swords available to forge!", "#999");
-            return;
-          }
-          const pick = prompt(
-            `Pick a sword (0-${avail.length - 1}):\n${avail.map((s, i) => `${i}. ${s.rarity.toUpperCase()} ${s.name} (x${G.collection[s.rarity][s.index]})`).join("\n")}`,
-          );
-          if (pick !== null && avail[pick]) {
-            G.forgeSlots[i] = avail[pick];
-            G.renderForgeSlots();
-          }
-        });
-      } else {
-        slot.addEventListener("click", () => {
-          G.forgeSlots[i] = null;
-          G.renderForgeSlots();
-        });
-      }
-      slotsDiv.appendChild(slot);
+    grid.innerHTML = "";
+    if (avail.length === 0) {
+      grid.innerHTML =
+        '<div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">No swords available to forge.<br>Need 5 Common, 10 Rare, or 25 Epic copies.</div>';
+      actionArea.style.display = "none";
+      return;
     }
-    G.updateForgeButton();
-  };
 
-  G.updateForgeButton = function () {
-    const executeBtn = document.getElementById("forgeExecute");
-    if (G.forgeSlots.length === 3 && G.forgeSlots.every(Boolean)) {
-      const first = G.forgeSlots[0];
-      const same = G.forgeSlots.every((s) => s.index === first.index);
-      executeBtn.disabled = !same;
-      executeBtn.textContent = same
-        ? `Forge → ${G.getNextRarity(first.rarity)}`
-        : "Swords must match!";
+    avail.forEach((sw) => {
+      const req = G.getForgeRequirement(sw.rarity);
+      const count = G.collection[sw.rarity][sw.index];
+      const item = document.createElement("div");
+      item.className = `sword-item ${sw.rarity} ${G.forgeSelectedSword === sw ? "active" : ""}`;
+      item.innerHTML = `<canvas width="${G.scaledW}" height="${G.scaledH}"></canvas><div class="sword-uses-badge" style="position:absolute;bottom:-2px;right:-2px;background:rgba(0,0,0,0.8);padding:1px 4px;font-size:10px;border-radius:3px;color:var(--accent-copper);border:1px solid rgba(249,115,22,0.3);">${count}/${req}</div>`;
+
+      const cv = item.querySelector("canvas");
+      const ctx = cv.getContext("2d");
+      const row = Math.floor(sw.index / G.spritesPerRow);
+      const col = sw.index % G.spritesPerRow;
+      ctx.drawImage(
+        G.spriteSheet,
+        col * G.spriteWidth,
+        row * G.spriteHeight,
+        G.spriteWidth,
+        G.spriteHeight,
+        0,
+        0,
+        G.scaledW,
+        G.scaledH,
+      );
+
+      item.addEventListener("click", () => {
+        G.forgeSelectedSword = sw;
+        G.renderForgeSelection();
+      });
+      grid.appendChild(item);
+    });
+
+    if (G.forgeSelectedSword) {
+      actionArea.style.display = "flex";
+      const sw = G.forgeSelectedSword;
+      const req = G.getForgeRequirement(sw.rarity);
+      const count = G.collection[sw.rarity][sw.index];
+      const nextRarity = G.getNextRarity(sw.rarity);
+
+      const slot = document.getElementById("forgeSelectedSlot");
+      slot.className = `sword-item ${sw.rarity} active`;
+      slot.innerHTML = `<canvas width="${G.scaledW}" height="${G.scaledH}"></canvas>`;
+      const ctx = slot.querySelector("canvas").getContext("2d");
+      const row = Math.floor(sw.index / G.spritesPerRow);
+      const col = sw.index % G.spritesPerRow;
+      ctx.drawImage(
+        G.spriteSheet,
+        col * G.spriteWidth,
+        row * G.spriteHeight,
+        G.spriteWidth,
+        G.spriteHeight,
+        0,
+        0,
+        G.scaledW,
+        G.scaledH,
+      );
+
+      document.getElementById("forgeCostText").innerHTML =
+        `Cost: <strong style="color:#ef4444">${req}</strong> ${sw.name} copies<br>You have: ${count}`;
+      const executeBtn = document.getElementById("forgeExecute");
+      executeBtn.disabled = count < req;
+      executeBtn.textContent = `Forge → ${nextRarity.toUpperCase()}`;
     } else {
-      executeBtn.disabled = true;
-      executeBtn.textContent = "Select 3 matching swords";
+      actionArea.style.display = "none";
     }
   };
 
   G.executeForge = function () {
-    const first = G.forgeSlots[0];
+    if (!G.forgeSelectedSword) return;
+    const first = G.forgeSelectedSword;
     const rarity = first.rarity;
     const nextRarity = G.getNextRarity(rarity);
+    const req = G.getForgeRequirement(rarity);
 
-    G.collection[rarity][first.index] -= 3;
+    if (G.collection[rarity][first.index] < req) return;
+
+    G.collection[rarity][first.index] -= req;
     if (G.collection[rarity][first.index] <= 0)
       delete G.collection[rarity][first.index];
 
@@ -631,10 +646,12 @@
           ? "#a855f7"
           : "#06b6d4",
     );
-    G.forgeSlots = [];
-    G.renderForgeSlots();
+
+    G.forgeSelectedSword = null;
+    G.renderForgeSelection();
     G.displayCollection();
     G.updateTopBar();
+    G.updateOpenChestButtonState();
     G.saveGame();
   };
 

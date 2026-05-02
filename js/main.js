@@ -92,6 +92,18 @@
     });
   });
 
+  // ---------- FEAT FILTERS ----------
+  document.querySelectorAll("#featFilters .filter-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document
+        .querySelectorAll("#featFilters .filter-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      G.currentFeatFilter = btn.dataset.filter;
+      G.updateAchievementsList();
+    });
+  });
+
   // ---------- INIT ----------
   G.initializeCollection();
 

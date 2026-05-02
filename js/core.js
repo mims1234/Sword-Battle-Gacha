@@ -95,8 +95,8 @@ G.difficultyThemes = {
   5: { color: "#ffd700", shadow: "#664400", glow: "#ffd700" },
 };
 
-G.PITY_EPIC_CAP = 15;
-G.PITY_LEGENDARY_CAP = 50;
+G.PITY_EPIC_CAP = 50;
+G.PITY_LEGENDARY_CAP = 200;
 G.SAVE_KEY = "idle_blade_master_save";
 
 // ===================== STATE =====================
@@ -260,11 +260,25 @@ G.getNextRarity = function (rarity) {
   return map[rarity];
 };
 
+G.getForgeRequirement = function (rarity) {
+  switch (rarity) {
+    case "common":
+      return 5;
+    case "rare":
+      return 10;
+    case "epic":
+      return 25;
+    default:
+      return 999;
+  }
+};
+
 G.getForgeableSwords = function () {
   const result = [];
-  for (const rarity of ["common", "rare", "epic", "legendary"]) {
+  for (const rarity of ["common", "rare", "epic"]) {
+    const req = G.getForgeRequirement(rarity);
     for (const [idx, count] of Object.entries(G.collection[rarity] || {})) {
-      if (count >= 3) {
+      if (count >= req) {
         const sw = G.swordData.find((s) => s.index === parseInt(idx));
         if (sw) result.push(sw);
       }
