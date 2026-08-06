@@ -1,0 +1,101 @@
+/* ===================== RESPONSIVE ===================== */
+/* Base styles are mobile-first. Enhance for tablets/desktop below. */
+
+@media (min-width: 600px) {
+  .hud-stats {
+    justify-content: flex-start;
+  }
+  .collection {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --tabbar-h: 0px;
+  }
+  .tabbar {
+    display: none;
+  }
+
+  /* desktop: drawers become fixed side rails */
+  .drawer {
+    top: auto;
+    bottom: 0;
+    width: 320px;
+    border-right: var(--border-soft);
+    box-shadow: none;
+  }
+  .drawer-wide {
+    width: 460px;
+  }
+  #armoryDrawer {
+    left: 0;
+  }
+  #questDrawer,
+  #bestiaryDrawer {
+    left: 320px;
+  }
+  #featsDrawer {
+    right: 0;
+    left: auto;
+    border-right: none;
+    border-left: var(--border-soft);
+    transform: translateX(104%);
+  }
+  .drawer-scrim {
+    display: none;
+  }
+
+  .stage {
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .arena {
+    gap: clamp(20px, 5vw, 70px);
+  }
+  .arena-slot {
+    width: clamp(120px, 20vw, 190px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stage-actions {
+    gap: 16px;
+  }
+}
+
+/* small phones: tighten up */
+@media (max-height: 640px) {
+  .hud {
+    gap: 6px;
+    padding-top: 6px;
+  }
+  .hud-stats {
+    display: none;
+  }
+  .stage {
+    gap: 8px;
+    padding-top: 8px;
+  }
+}
+
+/* landscape phones */
+@media (max-height: 500px) and (orientation: landscape) {
+  .arena {
+    gap: 12px;
+  }
+  .arena-slot {
+    width: 110px;
+  }
+  .stage {
+    grid-template-rows: 1fr auto;
+  }
+  .combat-feed {
+    display: none;
+  }
+}
