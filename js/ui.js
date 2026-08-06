@@ -2,752 +2,333 @@
 (function () {
   const G = Game;
 
-  // ---------- TOPBAR ----------
-  G.updateTopBar = function () {
-    document.querySelector(".monsters-killed").textContent = G.formatNum(
-      G.gameState.monstersKilled,
-    );
-    document.querySelector(".chests").textContent = G.gameState.chests;
-    document.querySelector(".level-text").textContent =
-      `Level ${G.gameState.level}`;
-
-    const fill = document.querySelector(".progress-fill");
-    const nextKills = G.gameState.level * 10;
-    const curKills = (G.gameState.level - 1) * 10;
-    const progress =
-      ((G.gameState.monstersKilled - curKills) / (nextKills - curKills)) * 100;
-    fill.style.width = `${Math.min(progress, 100)}%`;
-
-    G.updateCollectionCount();
+  const CAT_LABEL = {
+    undead: { label: "Undead", color: "#9ab886" },
+    beast: { label: "Beast", color: "#ff8a5a" },
+    dragon: { label: "Dragon", color: "#ff5a5a" },
+    demon: { label: "Demon", color: "#ff6ab5" },
+    holy: { label: "Holy", color: "#ffd76a" },
+    brute: { label: "Brute", color: "#b88a5a" },
+    nature: { label: "Nature", color: "#6bff8a" },
   };
 
-  G.updateCollectionCount = function () {
-    if (!G.els.collectionCount) return;
-    let total = 0;
-    Object.values(G.collection).forEach((r) => {
-      total += Object.keys(r).length;
-    });
-    G.els.collectionCount.textContent = `${total}/${G.swordData.length}`;
-  };
+  const ACH_TIERS = [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
 
-  G.updateDPS = function () {
-    if (!G.els.dpsDisplay) return;
-    if (G.currentSwordIndex !== null) {
+  G.ui = {
+    currentFeatFilter: "all",
+    currentFilter: "all",
+
+    // ---------- HUD ----------
+    updateHud() {
+      if (G.els.chestCount) G.els.chestCount.textContent = G.formatNum(G.gameState.chests);
+      if (G.els.soulCount) G.els.soulCount.textContent = G.formatNum(G.gameState.souls);
+      if (G.els.pullButton) {
+        G.els.pullButton.disabled = G.gameState.chests <= 0;
+        G.els.pullButtonX3.disabled = G.gameState.chests < 3;
+        G.els.pullCost.textContent = G.gameState.chests <= 0 ? "Empty" : "x1";
+      }
+    },
+
+    updateLevel() {
+      const lvl = G.gameState.level;
+      const needed = G.getLevelKillsNeeded(lvl);
+      const pct = G.clamp((G.gameState.levelProgress / needed) * 100, 0, 100);
+      if (G.els.levelText) G.els.levelText.textContent = lvl;
+      if (G.els.levelProgText) G.els.levelProgText.textContent = `${G.formatNum(G.gameState.levelProgress)} / ${G.formatNum(needed)}`;
+      if (G.els.levelFill) G.els.levelFill.style.width = pct + "%";
+    },
+
+    updatePity() {
+      const e = Math.min(G.gameState.pity.epic, G.PITY_EPIC_CAP);
+      const pct = (e / G.PITY_EPIC_CAP) * 100;
+      if (G.els.pityFill) G.els.pityFill.style.width = pct + "%";
+      if (G.els.pityText) {
+        const rem = G.PITY_EPIC_CAP - G.gameState.pity.epic;
+        G.els.pityText.textContent = rem > 0 ? `Epic in ${rem}` : "Guaranteed Epic!";
+      }
+    },
+
+    updateStats() {
+      if (G.els.killsStat) G.els.killsStat.textContent = G.formatNum(G.gameState.kills);
+      if (G.els.streakStat) G.els.streakStat.textContent = G.comboStreak;
+      const dps = this.getDPS();
+      if (G.els.dpsStat) G.els.dpsStat.textContent = G.formatNum(dps) + "/s";
+      const pw = G.els.prestigeStatWrap;
+      if (pw) pw.style.display = G.gameState.prestige.count > 0 ? "flex" : "none";
+      if (G.els.prestigeStat) G.els.prestigeStat.textContent = G.gameState.prestige.count;
+      if (G.els.menuPulls) G.els.menuPulls.textContent = G.formatNum(G.gameState.totalPulls);
+      if (G.els.menuLegendary) G.els.menuLegendary.textContent = G.formatNum(G.gameState.totalLegendary);
+      if (G.els.menuDamage) G.els.menuDamage.textContent = G.formatNum(G.gameState.totalDmg);
+      if (G.els.menuStreak) G.els.menuStreak.textContent = G.formatNum(G.gameState.bestStreak);
+      if (G.els.menuPrestige) G.els.menuPrestige.textContent = G.gameState.prestige.count;
+      const canPre = G.canPrestige();
+      if (G.els.prestigeButton) {
+        G.els.prestigeButton.disabled = !canPre;
+        G.els.prestigeButton.textContent = canPre
+          ? `♜ Prestige (to ${G.gameState.prestige.count + 1})`
+          : `♜ Prestige (Level ${G.gameState.level}/50)`;
+      }
+      if (G.els.enchantLevel) {
+        G.els.enchantLevel.textContent = `Lv ${G.gameState.enchant}/${G.ENCHANT_MAX}`;
+        G.els.enchantCost.textContent = `✦ ${G.formatNum(G.getEnchantCost())}`;
+        G.els.enchantButton.disabled =
+          G.gameState.enchant >= G.ENCHANT_MAX ||
+          G.gameState.souls < G.getEnchantCost();
+      }
+    },
+
+    getDPS() {
       const sw = G.swordData.find((s) => s.index === G.currentSwordIndex);
+      if (!sw || !G.gameState.activeSwords[sw.index]) return 0;
+      const dmg = sw.attack * (1 + (G.gameState.level - 1) * 0.1) * G.getTotalDamageMult();
+      const avgHp = 120;
+      const turns = Math.max(1, Math.ceil(avgHp / dmg));
+      const sec = turns * 0.42 + (DELAYS[sw.rarity] || 1.8);
+      return dmg / sec;
+    },
+
+    // ---------- BLADE ----------
+    updateBlade() {
+      const slot = G.els.bladeSlot;
+      if (!slot) return;
+      const sw = G.swordData.find((s) => s.index === G.currentSwordIndex);
+      slot.innerHTML = "";
+      slot.className = "arena-slot";
       if (sw && G.gameState.activeSwords[sw.index]) {
-        const dmg = sw.attack * (1 + (G.gameState.level - 1) * 0.1);
-        const delays = {
-          legendary: 1400,
-          epic: 2400,
-          rare: 3400,
-          common: 4400,
-        };
-        const delay = (delays[sw.rarity] || 3400) / 1000;
-        G.els.dpsDisplay.textContent = `DPS: ${(dmg / delay).toFixed(1)}`;
+        const cv = document.createElement("canvas");
+        slot.appendChild(cv);
+        G.drawSword(cv, sw.index, 96);
+        const e = G.ELEMENTS[sw.element || "steel"];
+        const chip = document.createElement("div");
+        chip.className = "el-chip el-" + (sw.element || "steel");
+        chip.textContent = `${e.ico} ${e.label}`;
+        slot.appendChild(chip);
+        slot.classList.add("selected");
+        if (G.els.bladeName) {
+          G.els.bladeName.textContent = sw.name;
+          G.els.bladeName.style.color = G.rarityColors[sw.rarity];
+        }
+        if (G.els.bladeUses)
+          G.els.bladeUses.textContent = `${G.gameState.activeSwords[sw.index]} uses`;
+      } else {
+        slot.innerHTML = '<div class="slot-label">Blade</div>';
+        if (G.els.bladeName) G.els.bladeName.textContent = "—";
+        if (G.els.bladeUses) G.els.bladeUses.textContent = "—";
+      }
+    },
+
+    // ---------- FOE ----------
+    updateFoe(monster) {
+      const slot = G.els.foeSlot;
+      if (!slot) return;
+      slot.innerHTML = "";
+      const cv = document.createElement("canvas");
+      slot.appendChild(cv);
+      G.drawMonster(cv, monster.type, 96);
+      const cat = G.getMonsterCategory(monster.type);
+      const info = CAT_LABEL[cat] || { label: "Foe", color: "#888" };
+      const chip = document.createElement("div");
+      chip.className = "el-chip el-steel";
+      chip.style.background = info.color;
+      chip.textContent = info.label;
+      slot.appendChild(chip);
+    },
+
+    showFoeHp(hp) {
+      G.els.foeHpFill.style.width = "100%";
+      G.els.foeHpText.textContent = `${hp} HP`;
+    },
+
+    // ---------- FEED ----------
+    feed(msg) {
+      if (G.els.feedLine) G.els.feedLine.innerHTML = msg;
+    },
+
+    // ---------- PLAY BUTTON ----------
+    updatePlayButton() {
+      const b = G.els.playPauseButton;
+      if (!b) return;
+      const can =
+        G.currentSwordIndex !== null &&
+        G.gameState.activeSwords[G.currentSwordIndex] > 0;
+      b.disabled = !can;
+      b.classList.toggle("active-battle", G.autoPlay);
+      b.textContent = G.autoPlay ? "■ Stop" : "⚔ Battle";
+    },
+
+    // ---------- COLLECTION ----------
+    renderCollection(filter) {
+      const container = G.els.collection;
+      if (!container) return;
+      filter = filter || this.currentFilter || "all";
+      this.currentFilter = filter;
+      let swords = G.swordData;
+      if (filter !== "all") swords = swords.filter((s) => s.rarity === filter);
+
+      container.innerHTML = swords
+        .map((sw) => {
+          const has = G.gameState.activeSwords[sw.index] > 0;
+          const selected = G.currentSwordIndex === sw.index;
+          const e = G.ELEMENTS[sw.element || "steel"];
+          return `<div class="sword-item ${sw.rarity} ${has ? "owned" : "locked"} ${selected ? "selected" : ""}" data-index="${sw.index}" data-name="${sw.name}">
+            <canvas width="64" height="64"></canvas>
+            <span class="el-dot el-${sw.element || "steel"}"></span>
+            ${has ? `<div class="sword-uses-badge">${G.gameState.activeSwords[sw.index]}</div>` : ""}
+          </div>`;
+        })
+        .join("");
+
+      container.querySelectorAll(".sword-item").forEach((item) => {
+        const sw = G.swordData.find((s) => s.index === parseInt(item.dataset.index));
+        if (!sw) return;
+        G.drawSword(item.querySelector("canvas"), sw.index, 64);
+        item.addEventListener("click", () => G.showSwordPreview(sw));
+      });
+
+      const total = Object.keys(G.collection).reduce(
+        (a, k) => a + Object.keys(G.collection[k] || {}).length, 0,
+      );
+      if (G.els.collectionCount)
+        G.els.collectionCount.textContent = `${total}/${G.swordData.length}`;
+    },
+
+    // ---------- BESTIARY ----------
+    updateBestiary() {
+      const grid = G.els.bestiaryGrid;
+      if (!grid) return;
+      grid.innerHTML = "";
+      let doneCount = 0;
+      G.monsterTypes.forEach((mon) => {
+        const kills = G.gameState.monsterKills[mon.type] || 0;
+        const done = kills >= 50;
+        if (done) doneCount++;
+        const cat = G.getMonsterCategory(mon.type);
+        const catLabel = CAT_LABEL[cat] ? CAT_LABEL[cat].label : "Foe";
+        const catColor = CAT_LABEL[cat] ? CAT_LABEL[cat].color : "#888";
+        const entry = document.createElement("div");
+        entry.className = "bestiary-entry" + (done ? " done" : "");
+        entry.innerHTML = `<canvas width="64" height="64"></canvas>`;
+        const c = entry.querySelector("canvas");
+        G.drawMonster(c, mon.type, 64);
+        const name = document.createElement("div");
+        name.className = "bestiary-name";
+        name.textContent = mon.type;
+        entry.appendChild(name);
+        const meta = document.createElement("div");
+        meta.className = "bestiary-meta";
+        meta.innerHTML = `
+          <span class="bestiary-tier" style="background:${catColor}22;color:${catColor}">${catLabel}</span>
+          <span class="bestiary-kills">💀 ${kills}</span>`;
+        entry.appendChild(meta);
+        grid.appendChild(entry);
+      });
+      if (G.els.bestiaryCount)
+        G.els.bestiaryCount.textContent = `${doneCount}/${G.monsterTypes.length} complete`;
+      this.updateBestiaryBonusHint();
+    },
+
+    updateBestiaryBonusHint() {
+      // show hint in bestiary drawer header
+      const bonus = Math.round(G.getBestiaryBonus() * 100);
+      if (G.els.bestiaryCount && bonus > 0)
+        G.els.bestiaryCount.textContent += ` · +${bonus}% dmg`;
+    },
+
+    // ---------- FEATS ----------
+    renderFeats() {
+      const box = G.els.featsList;
+      if (!box) return;
+      box.innerHTML = "";
+
+      const cards = [];
+
+      // global feats
+      const globalFeats = [
+        { label: "Total Monsters Slain", tiers: [100, 1000, 10000, 100000], cur: G.gameState.kills },
+        { label: "Chests Opened", tiers: [10, 100, 500, 2000], cur: G.gameState.totalPulls },
+        { label: "Blades Collected", tiers: [10, 20, 30], cur: Object.keys(G.collection).reduce((a, k) => a + Object.keys(G.collection[k] || {}).length, 0) },
+        { label: "Best Kill Streak", tiers: [10, 25, 50, 100], cur: G.gameState.bestStreak },
+      ];
+      globalFeats.forEach((f) => {
+        f.tiers.forEach((tier) => {
+          const complete = f.cur >= tier;
+          if (this.currentFeatFilter === "completed" && !complete) return;
+          if (!complete && f.cur <= 0) return;
+          cards.push(this.featCard(`${f.label} (${tier})`, f.cur, tier, complete));
+        });
+      });
+
+      // per-monster feats
+      Object.entries(G.gameState.monsterKills).forEach(([type, kills]) => {
+        ACH_TIERS.forEach((tier) => {
+          const complete = kills >= tier;
+          if (this.currentFeatFilter === "completed" && !complete) return;
+          cards.push(this.featCard(`Slay ${tier} ${type}s`, kills, tier, complete));
+        });
+      });
+
+      if (cards.length === 0) {
+        box.innerHTML = '<div style="color:#8a90a0;text-align:center;padding:20px">Battle to unlock feats.</div>';
         return;
       }
-    }
-    G.els.dpsDisplay.textContent = "DPS: 0";
-  };
+      cards.forEach((c) => box.appendChild(c));
+      G.fx.staggerIn(box, ".achievement-card");
+    },
 
-  G.updatePityUI = function () {
-    const epicPity = Math.min(G.gameState.pullsSinceEpic, G.PITY_EPIC_CAP);
-    const progress = (epicPity / G.PITY_EPIC_CAP) * 100;
-    if (G.els.pityFill) G.els.pityFill.style.width = `${progress}%`;
-    if (G.els.pityText) {
-      const remaining = G.PITY_EPIC_CAP - G.gameState.pullsSinceEpic;
-      G.els.pityText.textContent =
-        remaining > 0 ? `Epic in ${remaining}` : "Guaranteed Epic!";
-    }
-    if (G.els.pullsDisplay)
-      G.els.pullsDisplay.textContent = `Pulls: ${G.gameState.totalPulls}`;
-  };
-
-  G.updateComboUI = function () {
-    if (!G.els.comboDisplay) return;
-    if (G.comboStreak > 0) {
-      G.els.comboDisplay.style.display = "flex";
-      G.els.comboCount.textContent = G.comboStreak;
-      G.els.comboBonus.textContent = `(+${Math.round(G.getComboBonus() * 100)}%)`;
-    } else {
-      G.els.comboDisplay.style.display = "none";
-    }
-  };
-
-  G.updatePlayButtonState = function () {
-    const canBattle =
-      G.currentSwordIndex !== null &&
-      G.gameState.activeSwords[G.currentSwordIndex] > 0;
-    G.els.playPauseButton.disabled = !canBattle;
-    if (!canBattle) {
-      G.autoPlay = false;
-      G.els.playPauseButton.textContent = "Battle";
-    }
-  };
-
-  G.updateOpenChestButtonState = function () {
-    if (G.els.pullButton) G.els.pullButton.disabled = G.gameState.chests <= 0;
-    if (G.els.forgeButton)
-      G.els.forgeButton.disabled = G.getForgeableSwords().length === 0;
-  };
-
-  G.updatePrestigeUI = function () {
-    if (G.els.prestigeBlock)
-      G.els.prestigeBlock.style.display =
-        G.gameState.prestigeCount > 0 ? "flex" : "none";
-    if (G.els.prestigeCount)
-      G.els.prestigeCount.textContent = G.gameState.prestigeCount;
-    if (G.els.prestigeButton) G.els.prestigeButton.disabled = !G.canPrestige();
-  };
-
-  // ---------- SWORD DISPLAYS ----------
-  G.updateCurrentSwordDisplay = function (sword) {
-    const div = G.els.currentSword;
-    if (!div) return;
-    if (sword) {
-      const row = Math.floor(sword.index / G.spritesPerRow);
-      const col = sword.index % G.spritesPerRow;
-      const uses = G.gameState.activeSwords[sword.index];
-      div.innerHTML = `<canvas width="${G.scaledW}" height="${G.scaledH}"></canvas>${uses ? `<div class="uses-badge" style="position:absolute;bottom:-2px;right:-2px;background:rgba(0,0,0,0.8);padding:1px 4px;font-size:12px;border-radius:3px;color:var(--accent-copper)">${uses}</div>` : ""}`;
-      const cv = div.querySelector("canvas");
-      if (cv) {
-        const ctx = cv.getContext("2d");
-        ctx.drawImage(
-          G.spriteSheet,
-          col * G.spriteWidth,
-          row * G.spriteHeight,
-          G.spriteWidth,
-          G.spriteHeight,
-          0,
-          0,
-          G.scaledW,
-          G.scaledH,
-        );
-      }
-      div.className = "arena-slot current-sword";
-    } else {
-      div.innerHTML = '<div class="slot-label">Blade</div>';
-      div.className = "arena-slot current-sword";
-    }
-  };
-
-  G.updateCurrentMonsterDisplay = function (monster) {
-    const div = G.els.currentMonsterDisplay;
-    if (!div) return;
-    div.innerHTML = '<div class="slot-label">Foe</div>';
-    div.className = "arena-slot current-monster-display";
-    if (!monster) return;
-
-    const cv = document.createElement("canvas");
-    cv.width = G.scaledW;
-    cv.height = G.scaledH;
-    const ctx = cv.getContext("2d");
-    div.prepend(cv);
-
-    const idx = G.monsterSpriteMapping[monster.type.toLowerCase()];
-    if (idx !== undefined && G.isMonsterImageLoaded) {
-      const { row, col } = G.getSpritePosition(idx);
-      ctx.drawImage(
-        G.monsterSpriteSheet,
-        col * G.spriteWidth,
-        row * G.spriteHeight,
-        G.spriteWidth,
-        G.spriteHeight,
-        0,
-        0,
-        G.scaledW,
-        G.scaledH,
-      );
-    }
-    div.classList.add(`difficulty-${monster.difficulty}`);
-    if (G.gameState.monsterKills[monster.type] > 0)
-      div.classList.add("defeated");
-  };
-
-  // ---------- COLLECTION ----------
-  G.displayCollection = function (filter) {
-    filter = filter || "all";
-    const container = G.els.allCollection;
-    if (!container) return;
-
-    let swords = G.swordData;
-    if (filter !== "all")
-      swords = G.swordData.filter((s) => s.rarity === filter);
-
-    container.innerHTML = swords
-      .map((sword, i) => {
-        const isActive = G.gameState.activeSwords[sword.index] > 0;
-        const isSelected = G.currentSwordIndex === sword.index;
-        return `<div class="sword-item ${sword.rarity} ${isActive ? "" : "locked"} ${isSelected ? "active" : ""}" data-index="${sword.index}" style="--i:${i}">
-        <canvas width="${G.scaledW}" height="${G.scaledH}"></canvas>
-        ${isActive ? `<div class="sword-uses-badge">${G.gameState.activeSwords[sword.index]}</div>` : ""}
-      </div>`;
-      })
-      .join("");
-
-    container.querySelectorAll(".sword-item").forEach((item) => {
-      const sw = G.swordData.find(
-        (s) => s.index === parseInt(item.dataset.index),
-      );
-      if (!sw) return;
-      const cv = item.querySelector("canvas");
-      const ctx = cv.getContext("2d");
-      const row = Math.floor(sw.index / G.spritesPerRow);
-      const col = sw.index % G.spritesPerRow;
-      ctx.drawImage(
-        G.spriteSheet,
-        col * G.spriteWidth,
-        row * G.spriteHeight,
-        G.spriteWidth,
-        G.spriteHeight,
-        0,
-        0,
-        G.scaledW,
-        G.scaledH,
-      );
-
-      item.addEventListener("click", () => G.showSwordPreview(sw));
-    });
-  };
-
-  // ---------- SWORD PREVIEW MODAL ----------
-  G.showSwordPreview = function (sw) {
-    // Remove any existing preview
-    const old = document.querySelector(".preview-overlay");
-    if (old) old.remove();
-
-    const overlay = document.createElement("div");
-    overlay.className = "preview-overlay";
-    overlay.innerHTML = `
-      <div class="preview-card">
-        <div class="preview-card-header">
-          <span class="preview-card-name">${sw.name}</span>
-          <button class="preview-close-btn">✕</button>
+    featCard(name, cur, target, complete) {
+      const card = document.createElement("div");
+      card.className = "achievement-card" + (complete ? " complete" : "");
+      const pct = Math.min(100, (cur / target) * 100);
+      card.innerHTML = `
+        <div class="ach-icon">${complete ? "🏆" : "🔒"}</div>
+        <div class="ach-info">
+          <div class="ach-name" style="color:${complete ? "#ffb020" : "#c4c8d4"}">${name}</div>
+          <div class="ach-progress">${G.formatNum(cur)}/${G.formatNum(target)}</div>
         </div>
-        <canvas width="128" height="128" class="preview-card-sprite"></canvas>
-        <div class="preview-card-rarity ${sw.rarity}">${sw.rarity.toUpperCase()}</div>
-        <p class="preview-card-desc">${sw.description}</p>
-        <div class="preview-card-stats">
-          <span>⚔ ATK <strong>${sw.attack}</strong></span>
-          <span>🛡 DEF <strong>${sw.defense}</strong></span>
-        </div>
-        ${sw.specialPower ? `<div class="preview-card-power">✨ ${sw.specialPower}</div>` : ""}
-        <div class="preview-card-uses" style="color:${G.gameState.activeSwords[sw.index] ? "var(--accent-copper)" : "#ef4444"}">
-          ${G.gameState.activeSwords[sw.index] ? `⚔ ${G.gameState.activeSwords[sw.index]} uses remaining` : "❌ No uses left"}
-        </div>
-        <button class="preview-select-btn">${G.gameState.activeSwords[sw.index] ? "Select for Battle" : "No Uses Left"}</button>
-      </div>`;
-    document.body.appendChild(overlay);
+        <div class="ach-status ${complete ? "complete" : "pending"}">${complete ? "✓" : G.formatNum(target - cur)}</div>`;
+      return card;
+    },
 
-    // Draw sprite
-    const cv = overlay.querySelector("canvas");
-    const ctx = cv.getContext("2d");
-    ctx.imageSmoothingEnabled = false;
-    const row = Math.floor(sw.index / G.spritesPerRow);
-    const col = sw.index % G.spritesPerRow;
-    ctx.drawImage(
-      G.spriteSheet,
-      col * G.spriteWidth,
-      row * G.spriteHeight,
-      G.spriteWidth,
-      G.spriteHeight,
-      0,
-      0,
-      128,
-      128,
-    );
+    // ---------- FULL UPDATE ----------
+    updateAll() {
+      this.updateHud();
+      this.updateLevel();
+      this.updatePity();
+      this.updateStats();
+      this.updateBlade();
+      this.renderCollection();
+      this.updateBestiary();
+      this.renderFeats();
+      this.updatePlayButton();
+      G.quests && G.quests.render();
+      G.quests && G.quests.updateBadge();
+    },
 
-    // Close on backdrop click
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.remove();
-    });
+    // ---------- DRAWERS / SHEET ----------
+    openDrawer(name) {
+      const d = document.querySelector(`.drawer[data-drawer="${name}"]`);
+      if (!d) return;
+      if (name === "armory") this.renderCollection();
+      if (name === "bestiary") this.updateBestiary();
+      if (name === "quests") G.quests && G.quests.render();
+      if (name === "feats") this.renderFeats();
+      G.els.drawerScrim.classList.add("show");
+      d.classList.add("open");
+      G.fx.staggerIn(d, ".sword-item");
+    },
 
-    // Close button
-    overlay
-      .querySelector(".preview-close-btn")
-      .addEventListener("click", () => overlay.remove());
+    closeDrawers() {
+      document.querySelectorAll(".drawer.open").forEach((d) => d.classList.remove("open"));
+      G.els.drawerScrim.classList.remove("show");
+    },
 
-    // Select button
-    const selectBtn = overlay.querySelector(".preview-select-btn");
-    if (G.gameState.activeSwords[sw.index]) {
-      selectBtn.addEventListener("click", () => {
-        G.currentSwordIndex = sw.index;
-        G.updateCurrentSwordDisplay(sw);
-        G.updatePlayButtonState();
-        G.displayCollection(
-          document.querySelector(".filter-btn.active")?.dataset?.filter ||
-            "all",
-        );
-        overlay.remove();
-        if (G.autoPlay && G.gameState.activeSwords[sw.index])
-          G.simulateBattle(sw);
-      });
-    } else {
-      selectBtn.disabled = true;
-    }
+    toggleMenu(open) {
+      const on = open !== undefined ? open : !G.els.menuSheet.classList.contains("open");
+      G.els.sheetScrim.classList.toggle("show", on);
+      G.els.menuSheet.classList.toggle("open", on);
+      if (on) this.updateStats();
+    },
   };
 
-  // ---------- GACHA ----------
-  G.doGachaPull = function () {
-    if (!G.isImageLoaded || !G.swordData.length) {
-      G.els.resultDiv.innerHTML = '<div class="gacha-result">Loading...</div>';
-      return;
-    }
-    if (G.gameState.chests <= 0) {
-      G.els.resultDiv.innerHTML =
-        '<div class="gacha-result">No chests available!</div>';
-      return;
-    }
-    G.gameState.chests--;
-    G.updateOpenChestButtonState();
-
-    if (G.els.chestAnim) {
-      G.els.chestAnim.style.display = "block";
-      G.els.chestAnim.className = "chest-animation";
-      setTimeout(() => {
-        G.els.chestAnim.style.display = "none";
-      }, 2500);
-    }
-
-    let rawRarity = G.getRandomRarity();
-    rawRarity = G.getPityRarity(rawRarity);
-    const sword = G.getRandomSpriteIndex(rawRarity);
-    const rarity = rawRarity;
-
-    G.applyPity(rarity);
-    G.gameState.totalPulls++;
-    G.updatePityUI();
-
-    const useLimit = G.getSwordUseLimit(rarity);
-    if (!G.collection[rarity][sword.index]) {
-      G.collection[rarity][sword.index] = 1;
-      G.gameState.activeSwords[sword.index] =
-        (G.gameState.activeSwords[sword.index] || 0) + useLimit;
-      G.updatePlayButtonState();
-    } else {
-      G.collection[rarity][sword.index]++;
-      G.gameState.activeSwords[sword.index] =
-        (G.gameState.activeSwords[sword.index] || 0) + useLimit;
-      G.updatePlayButtonState();
-    }
-
-    G.comboStreak = 0;
-    G.updateComboUI();
-
-    const row = Math.floor(sword.index / G.spritesPerRow);
-    const col = sword.index % G.spritesPerRow;
-
-    G.els.resultDiv.innerHTML = `
-      <div class="gacha-result ${rarity}">
-        <canvas width="${G.scaledW}" height="${G.scaledH}"></canvas>
-        <div class="rarity-text">${rarity.toUpperCase()}</div>
-        <div class="sword-name">${sword.name}</div>
-        <div class="sword-description">${sword.description}</div>
-        <div class="sword-stats">⚔ ${sword.attack}, 🛡 ${sword.defense}${sword.specialPower ? `, ✨ ${sword.specialPower}` : ""}</div>
-        <div class="uses-left">Uses: ${G.gameState.activeSwords[sword.index]}</div>
-      </div>`;
-
-    const cv = G.els.resultDiv.querySelector("canvas");
-    if (cv) {
-      const ctx = cv.getContext("2d");
-      ctx.drawImage(
-        G.spriteSheet,
-        col * G.spriteWidth,
-        row * G.spriteHeight,
-        G.spriteWidth,
-        G.spriteHeight,
-        0,
-        0,
-        G.scaledW,
-        G.scaledH,
-      );
-    }
-
-    G.displayCollection();
-    G.updateTopBar();
-    G.showNotification(
-      `🗡️ ${rarity.toUpperCase()}: ${sword.name}!`,
-      rarity === "legendary"
-        ? "#f59e0b"
-        : rarity === "epic"
-          ? "#a855f7"
-          : rarity === "rare"
-            ? "#06b6d4"
-            : "#78716c",
-    );
-
-    if (rarity === "legendary") G.applyLegendaryEffect();
-    G.saveGame();
-  };
-
-  G.applyLegendaryEffect = function () {
-    const overlay = document.createElement("div");
-    overlay.className = "legendary-overlay compact-overlay";
-    const container = G.els.overlayContainer;
-    if (!container) return;
-    container.innerHTML = "";
-    container.appendChild(overlay);
-    for (let i = 0; i < 3; i++) {
-      const l = document.createElement("div");
-      l.className = "lightning";
-      overlay.appendChild(l);
-    }
-    container.style.animation = "shake 0.3s cubic-bezier(.36,.07,.19,.97) both";
-    setTimeout(() => {
-      overlay.remove();
-      container.style.animation = "";
-    }, 2000);
-  };
-
-  // ---------- LEVEL UP ----------
-  G.checkLevelUp = function () {
-    const needed = G.gameState.level * 10;
-    if (G.gameState.monstersKilled >= needed) G.levelUp();
-  };
-
-  G.levelUp = function () {
-    G.gameState.level++;
-
-    const overlay = document.createElement("div");
-    overlay.className = "special-ability-overlay level-up";
-    overlay.innerHTML = `
-      <div class="overlay-content-row">
-        <div style="font-size:2em;color:#f59e0b;margin-right:12px">🏆</div>
-        <div class="overlay-text-container">
-          <div class="overlay-title pulse-text" style="color:#f59e0b">Level Up!</div>
-          <div class="overlay-description">Advanced to Level ${G.gameState.level}!</div>
-          <div class="overlay-description float-text" style="color:#f59e0b;margin-top:4px">+2 Bonus Chests</div>
-        </div>
-      </div>`;
-    G.overlayQueue.add(overlay, 3000);
-
-    document.body.style.animation =
-      "shake 0.5s cubic-bezier(.36,.07,.19,.97) both";
-    setTimeout(() => {
-      document.body.style.animation = "";
-    }, 500);
-
-    G.showNotification(
-      `⬆️ Level ${G.gameState.level}! +2 bonus chests!`,
-      "#f59e0b",
-    );
-    G.gameState.chests += 2;
-    G.updateTopBar();
-    G.updateOpenChestButtonState();
-    G.updatePrestigeUI();
-    G.saveGame();
-  };
-
-  // ---------- ACHIEVEMENTS ----------
-  G.updateAchievementsList = function () {
-    if (!G.els.achievementsList) return;
-    const monsters = Object.keys(G.gameState.monsterKills);
-    if (monsters.length === 0) {
-      G.els.achievementsList.innerHTML =
-        '<div style="color:#666;padding:8px;font-size:12px">Battle monsters to unlock achievements</div>';
-      return;
-    }
-    G.els.achievementsList.innerHTML = "";
-    G.currentFeatFilter = G.currentFeatFilter || "all";
-
-    monsters.forEach((type) => {
-      const kills = G.gameState.monsterKills[type];
-      const tiers = Object.keys(G.achievementTiers)
-        .map(Number)
-        .sort((a, b) => a - b);
-      tiers.forEach((tier) => {
-        const data = G.achievementTiers[tier];
-        const complete = kills >= tier;
-
-        if (G.currentFeatFilter === "completed" && !complete) return;
-
-        const progress = Math.min((kills / tier) * 100, 100);
-        const card = document.createElement("div");
-        card.className = "achievement-card";
-        card.innerHTML = `
-          <div class="ach-icon">${complete ? "🏆" : "🔒"}</div>
-          <div class="ach-info">
-            <div class="ach-name" style="color:${complete ? "#f59e0b" : "#777"}">${tier} ${type} kills</div>
-            <div class="ach-progress">${kills}/${tier} (${Math.round(progress)}%)</div>
-          </div>
-          <div class="ach-status ${complete ? "complete" : "pending"}">${complete ? "✓" : tier - kills + " left"}</div>`;
-        G.els.achievementsList.appendChild(card);
-      });
-    });
-  };
-
-  // ---------- BESTIARY ----------
-  G.updateBestiaryList = function () {
-    if (!G.els.bestiaryList) return;
-    G.els.bestiaryList.innerHTML = "";
-    const sorted = [...G.monsterTypes].sort((a, b) => {
-      return (
-        (G.gameState.monsterKills[b.type] || 0) -
-        (G.gameState.monsterKills[a.type] || 0)
-      );
-    });
-    sorted.slice(0, 30).forEach((mon) => {
-      const kills = G.gameState.monsterKills[mon.type] || 0;
-      const entry = document.createElement("div");
-      entry.className = "bestiary-mini";
-      const cv = document.createElement("canvas");
-      cv.width = G.scaledW;
-      cv.height = G.scaledH;
-      const ctx = cv.getContext("2d");
-      const idx = G.monsterSpriteMapping[mon.type.toLowerCase()];
-      if (idx !== undefined && G.isMonsterImageLoaded) {
-        const { row, col } = G.getSpritePosition(idx);
-        ctx.drawImage(
-          G.monsterSpriteSheet,
-          col * G.spriteWidth,
-          row * G.spriteHeight,
-          G.spriteWidth,
-          G.spriteHeight,
-          0,
-          0,
-          G.scaledW,
-          G.scaledH,
-        );
-      }
-      entry.appendChild(cv);
-
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "bm-name";
-      nameSpan.textContent = mon.type;
-      entry.appendChild(nameSpan);
-
-      const killsSpan = document.createElement("span");
-      killsSpan.className = "bm-kills";
-      killsSpan.textContent = `💀 ${kills}`;
-      entry.appendChild(killsSpan);
-
-      G.els.bestiaryList.appendChild(entry);
-    });
-  };
-
-  // ---------- FORGE ----------
-  G.openForgeModal = function () {
-    G.forgeSelectedSword = null;
-    G.renderForgeSelection();
-    document.getElementById("forgeModal").style.display = "flex";
-  };
-
-  G.closeForgeModal = function () {
-    document.getElementById("forgeModal").style.display = "none";
-  };
-
-  G.renderForgeSelection = function () {
-    const grid = document.getElementById("forgeSelectionGrid");
-    const actionArea = document.getElementById("forgeActionArea");
-    const avail = G.getForgeableSwords();
-
-    grid.innerHTML = "";
-    if (avail.length === 0) {
-      grid.innerHTML =
-        '<div style="grid-column: 1 / -1; text-align: center; color: #666; padding: 20px;">No swords available to forge.<br>Need 5 Common, 10 Rare, or 25 Epic copies.</div>';
-      actionArea.style.display = "none";
-      return;
-    }
-
-    avail.forEach((sw) => {
-      const req = G.getForgeRequirement(sw.rarity);
-      const count = G.collection[sw.rarity][sw.index];
-      const item = document.createElement("div");
-      item.className = `sword-item ${sw.rarity} ${G.forgeSelectedSword === sw ? "active" : ""}`;
-      item.innerHTML = `<canvas width="${G.scaledW}" height="${G.scaledH}"></canvas><div class="sword-uses-badge" style="position:absolute;bottom:-2px;right:-2px;background:rgba(0,0,0,0.8);padding:1px 4px;font-size:10px;border-radius:3px;color:var(--accent-copper);border:1px solid rgba(249,115,22,0.3);">${count}/${req}</div>`;
-
-      const cv = item.querySelector("canvas");
-      const ctx = cv.getContext("2d");
-      const row = Math.floor(sw.index / G.spritesPerRow);
-      const col = sw.index % G.spritesPerRow;
-      ctx.drawImage(
-        G.spriteSheet,
-        col * G.spriteWidth,
-        row * G.spriteHeight,
-        G.spriteWidth,
-        G.spriteHeight,
-        0,
-        0,
-        G.scaledW,
-        G.scaledH,
-      );
-
-      item.addEventListener("click", () => {
-        G.forgeSelectedSword = sw;
-        G.renderForgeSelection();
-      });
-      grid.appendChild(item);
-    });
-
-    if (G.forgeSelectedSword) {
-      actionArea.style.display = "flex";
-      const sw = G.forgeSelectedSword;
-      const req = G.getForgeRequirement(sw.rarity);
-      const count = G.collection[sw.rarity][sw.index];
-      const nextRarity = G.getNextRarity(sw.rarity);
-
-      const slot = document.getElementById("forgeSelectedSlot");
-      slot.className = `sword-item ${sw.rarity} active`;
-      slot.innerHTML = `<canvas width="${G.scaledW}" height="${G.scaledH}"></canvas>`;
-      const ctx = slot.querySelector("canvas").getContext("2d");
-      const row = Math.floor(sw.index / G.spritesPerRow);
-      const col = sw.index % G.spritesPerRow;
-      ctx.drawImage(
-        G.spriteSheet,
-        col * G.spriteWidth,
-        row * G.spriteHeight,
-        G.spriteWidth,
-        G.spriteHeight,
-        0,
-        0,
-        G.scaledW,
-        G.scaledH,
-      );
-
-      document.getElementById("forgeCostText").innerHTML =
-        `Cost: <strong style="color:#ef4444">${req}</strong> ${sw.name} copies<br>You have: ${count}`;
-      const executeBtn = document.getElementById("forgeExecute");
-      executeBtn.disabled = count < req;
-      executeBtn.textContent = `Forge → ${nextRarity.toUpperCase()}`;
-    } else {
-      actionArea.style.display = "none";
-    }
-  };
-
-  G.executeForge = function () {
-    if (!G.forgeSelectedSword) return;
-    const first = G.forgeSelectedSword;
-    const rarity = first.rarity;
-    const nextRarity = G.getNextRarity(rarity);
-    const req = G.getForgeRequirement(rarity);
-
-    if (G.collection[rarity][first.index] < req) return;
-
-    G.collection[rarity][first.index] -= req;
-    if (G.collection[rarity][first.index] <= 0)
-      delete G.collection[rarity][first.index];
-
-    const newSword = G.getRandomSpriteIndex(nextRarity);
-    const useLimit = G.getSwordUseLimit(nextRarity);
-    if (!G.collection[nextRarity][newSword.index]) {
-      G.collection[nextRarity][newSword.index] = 1;
-      G.gameState.activeSwords[newSword.index] =
-        (G.gameState.activeSwords[newSword.index] || 0) + useLimit;
-    } else {
-      G.collection[nextRarity][newSword.index]++;
-      G.gameState.activeSwords[newSword.index] =
-        (G.gameState.activeSwords[newSword.index] || 0) + useLimit;
-    }
-
-    G.showNotification(
-      `🔨 Forged ${newSword.name} (${nextRarity.toUpperCase()})!`,
-      nextRarity === "legendary"
-        ? "#f59e0b"
-        : nextRarity === "epic"
-          ? "#a855f7"
-          : "#06b6d4",
-    );
-
-    G.forgeSelectedSword = null;
-    G.renderForgeSelection();
-    G.displayCollection();
-    G.updateTopBar();
-    G.updateOpenChestButtonState();
-    G.saveGame();
-  };
-
-  // ---------- BESTIARY MODAL ----------
-  G.openBestiaryModal = function () {
-    G.renderBestiaryGrid();
-    document.getElementById("bestiaryModal").style.display = "flex";
-  };
-
-  G.renderBestiaryGrid = function () {
-    const grid = document.getElementById("bestiaryGrid");
-    grid.innerHTML = "";
-    G.monsterTypes.forEach((mon) => {
-      const kills = G.gameState.monsterKills[mon.type] || 0;
-      const entry = document.createElement("div");
-      entry.className = "bestiary-entry";
-      const c = document.createElement("canvas");
-      c.width = G.scaledW;
-      c.height = G.scaledH;
-      const ctx = c.getContext("2d");
-      const idx = G.monsterSpriteMapping[mon.type.toLowerCase()];
-      if (idx !== undefined && G.isMonsterImageLoaded) {
-        const { row, col } = G.getSpritePosition(idx);
-        ctx.drawImage(
-          G.monsterSpriteSheet,
-          col * G.spriteWidth,
-          row * G.spriteHeight,
-          G.spriteWidth,
-          G.spriteHeight,
-          0,
-          0,
-          G.scaledW,
-          G.scaledH,
-        );
-      }
-      entry.appendChild(c);
-
-      const nameDiv = document.createElement("div");
-      nameDiv.className = "bestiary-name";
-      nameDiv.textContent = mon.type;
-      entry.appendChild(nameDiv);
-
-      const killsDiv = document.createElement("div");
-      killsDiv.className = "bestiary-kills";
-      killsDiv.textContent = `💀 ${kills}`;
-      entry.appendChild(killsDiv);
-
-      const tierColors = {
-        1: "#666",
-        2: "#2ecc71",
-        3: "#00ffff",
-        4: "#ff00ff",
-        5: "#ffd700",
-      };
-      const tierDiv = document.createElement("div");
-      tierDiv.className = "bestiary-tier";
-      tierDiv.style.background = `${tierColors[mon.difficulty]}22`;
-      tierDiv.style.color = tierColors[mon.difficulty];
-      tierDiv.textContent = `T${mon.difficulty}`;
-      entry.appendChild(tierDiv);
-
-      grid.appendChild(entry);
-    });
-  };
-
-  // ---------- PRESTIGE ----------
-  G.doPrestige = function () {
-    if (!G.canPrestige()) return;
-    if (
-      !confirm(
-        `Prestige to level ${G.gameState.prestigeCount + 1}?\n\nResets: Level, kills, swords, chests\nKeeps: Prestige count (+0.5% legendary rate), total pulls\nStart with 10 chests`,
-      )
-    )
-      return;
-
-    G.gameState.prestigeCount++;
-    G.gameState.prestigeBonus = G.gameState.prestigeCount * 0.005;
-    G.gameState.level = 1;
-    G.gameState.monstersKilled = 0;
-    G.gameState.chests = 10;
-    G.gameState.activeSwords = {};
-    G.gameState.monsterKills = {};
-    G.currentSwordIndex = null;
-    G.comboStreak = 0;
-    G.initializeCollection();
-
-    G.updatePrestigeUI();
-    G.updateTopBar();
-    G.displayCollection();
-    G.updatePlayButtonState();
-    G.updateOpenChestButtonState();
-    G.saveGame();
-    G.showNotification(
-      `♜ Prestige ${G.gameState.prestigeCount}! Legendary rate: +${(G.gameState.prestigeBonus * 100).toFixed(1)}%`,
-      "#f97316",
-    );
-  };
+  const DELAYS = { legendary: 0.9, epic: 1.4, rare: 1.8, common: 2.2 };
 })();
