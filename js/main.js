@@ -106,6 +106,14 @@
     // menu
     $.menuButton.addEventListener("click", () => G.ui.toggleMenu(true));
     G.els.menuSheetClose.addEventListener("click", () => G.ui.toggleMenu(false));
+    document.getElementById("armoryMenuButton").addEventListener("click", () => {
+      G.ui.toggleMenu(false);
+      G.ui.openDrawer("armory");
+    });
+    document.getElementById("bestiaryMenuButton").addEventListener("click", () => {
+      G.ui.toggleMenu(false);
+      G.ui.openDrawer("bestiary");
+    });
 
     // armory
     document.querySelectorAll("#armoryFilters .filter-btn").forEach((btn) => {

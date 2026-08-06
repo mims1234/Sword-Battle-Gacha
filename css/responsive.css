@@ -35,7 +35,7 @@
   }
   #questDrawer,
   #bestiaryDrawer {
-    left: 320px;
+    left: 0;
   }
   #featsDrawer {
     right: 0;

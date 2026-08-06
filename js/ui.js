@@ -308,6 +308,7 @@
     openDrawer(name) {
       const d = document.querySelector(`.drawer[data-drawer="${name}"]`);
       if (!d) return;
+      this.closeDrawers();
       if (name === "armory") this.renderCollection();
       if (name === "bestiary") this.updateBestiary();
       if (name === "quests") G.quests && G.quests.render();
