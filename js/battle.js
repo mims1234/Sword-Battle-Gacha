@@ -2,195 +2,185 @@
 (function () {
   const G = Game;
 
+  let pending = null; // { timer, finish, done }
+
+  const DELAYS = { legendary: 900, epic: 1400, rare: 1800, common: 2200 };
+
+  G.isBattling = () => !!pending && !pending.done;
+
+  function getDamage(sword, monster) {
+    const levelMult = 1 + (G.gameState.level - 1) * 0.1;
+    const enchantMult = G.getTotalDamageMult();
+    let dmg = sword.attack * levelMult * enchantMult;
+    dmg *= 1 + G.getComboBonus();
+    const counter = G.isCountered(sword, monster);
+    if (counter) dmg *= 1.5;
+    const crit = G.rollCrit();
+    if (crit) dmg *= 2;
+    return { dmg, crit, counter };
+  }
+
+  G.rollCrit = function () {
+    const chance = 0.05 + (G.gameState.level - 1) * 0.01;
+    return Math.random() < Math.min(chance, 0.5);
+  };
+
+  G.getComboBonus = function () {
+    return Math.min(G.comboStreak * 0.05, 0.5);
+  };
+
+  G.stopBattle = function () {
+    if (pending) {
+      clearTimeout(pending.timer);
+      pending = null;
+    }
+    G.autoPlay = false;
+    G.ui && G.ui.updatePlayButton();
+  };
+
   G.simulateBattle = function (sword) {
     if (!sword || !G.gameState.activeSwords[sword.index]) return;
-    if (G.overlayQueue.isDisplaying && G.overlayQueue.queue.length > 0) return;
+    if (G.isBattling()) return;
 
-    const monster = G.monsterTypes[Math.floor(Math.random() * G.monsterTypes.length)];
-    let monsterHp = monster ? monster.health : 50;
-
-    let specialAbilityTriggered = false;
-    let monstersDefeated = 1;
-    let isCrit = false;
-
-    G.updateCurrentMonsterDisplay(monster);
-    G.updateOpenChestButtonState();
-
-    if (sword.rarity === "legendary" || sword.rarity === "epic") {
-      const chance = sword.rarity === "legendary" ? 0.15 : 0.08;
-      specialAbilityTriggered = Math.random() < chance;
+    if (pending) {
+      clearTimeout(pending.timer);
+      pending = null;
     }
 
-    const baseDamage = sword.attack * (1 + (G.gameState.level - 1) * 0.1);
-    const totalDamage = G.applyComboDamage(baseDamage);
-    isCrit = G.rollCrit();
-    const finalDamage = isCrit ? totalDamage * 2 : totalDamage;
-    G.gameState.totalDamageDealt += finalDamage;
+    const monster = G.pick(G.monsterTypes);
+    const { dmg, crit, counter } = getDamage(sword, monster);
+    const special =
+      (sword.rarity === "legendary" && Math.random() < 0.15) ||
+      (sword.rarity === "epic" && Math.random() < 0.08);
+    const defeated = special
+      ? sword.rarity === "legendary"
+        ? 5
+        : 3
+      : 1;
 
-    const turnsToKill = Math.ceil(monsterHp / finalDamage);
+    G.ui.updateFoe(monster);
+    G.ui.showFoeHp(monster.health);
+    G.els.foeHpBar.style.display = "block";
 
-    const battleMessage = document.createElement("div");
-    battleMessage.className = "notification";
-    const theme = G.difficultyThemes[monster.difficulty] || G.difficultyThemes[1];
-    const critTag = isCrit ? "⚡CRIT!⚡ " : "";
-    battleMessage.innerHTML = `⚔️ ${critTag}<span class="${sword.rarity}">${sword.name}</span> (${finalDamage.toFixed(1)} DMG) VS <span style="color: ${theme.color};">${monster.type}</span> (${monsterHp} HP)...`;
-    G.els.notificationsDiv.prepend(battleMessage);
-    G.checkNotificationsLimit();
+    const turns = G.clamp(Math.ceil(monster.health / Math.max(dmg, 1)), 1, 8);
+    const turnMs = 420 / G.speed;
+    const battleMs = turns * turnMs;
 
-    setTimeout(() => G.showFloatingDamage(finalDamage, isCrit), 200);
-
-    G.comboStreak++;
-    if (G.comboStreak > G.gameState.bestKillStreak) G.gameState.bestKillStreak = G.comboStreak;
-    G.updateComboUI();
-
-    if (specialAbilityTriggered) {
-      monstersDefeated = sword.rarity === "legendary" ? 5 : 3;
-      const overlay = document.createElement("div");
-      overlay.className = `special-ability-overlay ${sword.rarity}`;
-      overlay.innerHTML = `
-        <div class="overlay-content-row">
-          <canvas class="overlay-sprite overlay-sprite-normal" width="50" height="50"></canvas>
-          <div class="overlay-text-container">
-            <div class="overlay-title pulse-text" style="color:${sword.rarity === "legendary" ? "#f59e0b" : "#a855f7"}">${sword.specialPower}!</div>
-            <div class="overlay-description">Defeated ${monstersDefeated} ${monster.type}s in one strike!</div>
-          </div>
-        </div>`;
-      G.overlayQueue.add(overlay, 2000);
-      setTimeout(() => {
-        const cv = overlay.querySelector("canvas");
-        if (cv) {
-          const ctx = cv.getContext("2d");
-          const row = Math.floor(sword.index / G.spritesPerRow);
-          const col = sword.index % G.spritesPerRow;
-          ctx.drawImage(G.spriteSheet, col * G.spriteWidth, row * G.spriteHeight, G.spriteWidth, G.spriteHeight, 0, 0, 50, 50);
-        }
-      }, 0);
-    }
-
+    G.fx.swingFoe(G.els.foeSlot.querySelector("canvas") || G.els.foeSlot);
     setTimeout(() => {
+      G.fx.floatDmg(dmg, crit, undefined, undefined);
+    }, 140);
+
+    const elementMsg = counter
+      ? ` <span style="color:${G.ELEMENTS[sword.element].color}">[${G.ELEMENTS[sword.element].ico} advantage!]</span>`
+      : "";
+    G.ui.feed(
+      `🗡️ ${crit ? "⚡CRIT⚡ " : ""}<b style="color:${G.rarityColors[sword.rarity]}">${sword.name}</b> vs ${monster.type}${elementMsg}`,
+    );
+
+    // animate hp draining
+    G.fx.hpTween(G.els.foeHpFill, 100, 200);
+    setTimeout(() => G.fx.hpTween(G.els.foeHpFill, 8, battleMs * 0.6), battleMs * 0.2);
+
+    const finish = () => {
+      if (!pending || pending.done) return;
+      pending.done = true;
+      pending = null;
+
+      G.fx.defeatFoe(G.els.foeSlot.querySelector("canvas") || G.els.foeSlot);
+      G.els.foeHpBar.style.display = "none";
+      G.fx.burst(G.els.foeSlot, counter ? G.ELEMENTS[sword.element].color : "#ffb347", 12, 90);
+
+      // uses
       G.gameState.activeSwords[sword.index]--;
       if (G.gameState.activeSwords[sword.index] <= 0) {
         delete G.gameState.activeSwords[sword.index];
         G.currentSwordIndex = null;
         G.comboStreak = 0;
-        G.updateComboUI();
-        G.updatePlayButtonState();
+        G.ui.updateBlade();
+        G.ui.updatePlayButton();
+        G.fx.toast(`${sword.name} is spent! Forge more blades.`, "#8a90a0");
       }
 
-      G.gameState.monstersKilled += monstersDefeated;
-      G.gameState.chests += monster.chestReward * monstersDefeated;
+      // streak
+      G.comboStreak++;
+      if (G.comboStreak > G.gameState.bestStreak)
+        G.gameState.bestStreak = G.comboStreak;
 
-      if (!G.gameState.monsterKills[monster.type]) G.gameState.monsterKills[monster.type] = 0;
-      const prevKills = G.gameState.monsterKills[monster.type];
-      G.gameState.monsterKills[monster.type] += monstersDefeated;
-      const newKills = G.gameState.monsterKills[monster.type];
+      // kills + level ups
+      G.addKills(defeated, monster);
 
-      Object.entries(G.achievementTiers).forEach(([kills, tier]) => {
-        if (prevKills < kills && newKills >= kills) {
-          const achOverlay = document.createElement("div");
-          achOverlay.className = "special-ability-overlay achievement";
-          achOverlay.innerHTML = `
-            <div class="overlay-content-row">
-              <canvas class="overlay-sprite overlay-sprite-normal" width="50" height="50"></canvas>
-              <div class="overlay-text-container">
-                <div class="overlay-title pulse-text" style="color:${tier.shadowColor.replace("0.3", "1")}">${kills} Kill Achievement!</div>
-                <div class="overlay-description">Defeated ${kills} ${monster.type}s!</div>
-              </div>
-            </div>`;
-          G.overlayQueue.add(achOverlay, 3000);
-          G.showNotification(`🏆 Achievement: ${kills} ${monster.type} kills!`, tier.shadowColor);
-          G.saveGame();
+      // chests
+      const chestGain = monster.chestReward * defeated;
+      if (chestGain > 0) G.addChests(chestGain, true);
+
+      // souls
+      const soulVal = G.SOUL_BASE[monster.difficulty] || 1;
+      if (monster.chestReward > 0 || Math.random() < 0.4) {
+        const soulGain = soulVal * defeated;
+        G.addSouls(soulGain);
+        G.fx.floatText(G.els.soulChip, `+${soulGain} ✦`, "#b98aff");
+      }
+
+      G.gameState.totalDmg += dmg;
+
+      G.ui.feed(
+        special
+          ? `✨ <b style="color:${G.rarityColors[sword.rarity]}">${sword.specialPower}</b> — ${sword.name} slew ${defeated} ${monster.type}s!`
+          : `⚔ <b style="color:${G.rarityColors[sword.rarity]}">${sword.name}</b> felled ${monster.type} in ${turns} turn${turns > 1 ? "s" : ""} (${dmg.toFixed(0)} dmg)`,
+      );
+
+      G.ui.updateAll();
+      G.quests && G.quests.progress("kills", defeated, monster);
+
+      if (G.autoPlay && G.currentSwordIndex !== null) {
+        const next = G.swordData.find((s) => s.index === G.currentSwordIndex);
+        if (next && G.gameState.activeSwords[next.index] > 0) {
+          const inter = (DELAYS[next.rarity] || 1800) / G.speed;
+          pending = {
+            timer: setTimeout(() => {
+              pending = null;
+              G.simulateBattle(next);
+            }, inter),
+            done: false,
+          };
+          return;
         }
-      });
-
-      if (monster.chestReward > 0) {
-        const crOverlay = document.createElement("div");
-        crOverlay.className = "special-ability-overlay chest-reward";
-        crOverlay.innerHTML = `
-          <div class="overlay-content-row">
-            <canvas class="overlay-sprite overlay-sprite-large" width="70" height="70"></canvas>
-            <div class="overlay-text-container">
-              <div class="overlay-title pulse-text" style="color:${theme.color}">Powerful Enemy Defeated!</div>
-              <div class="overlay-description float-text">${monster.type} dropped ${monster.chestReward} chest${monster.chestReward > 1 ? "s" : ""}!</div>
-            </div>
-          </div>`;
-        G.overlayQueue.add(crOverlay, 2500);
-        setTimeout(() => {
-          const mc = crOverlay.querySelector("canvas");
-          if (mc && G.monsterSpriteMapping[monster.type.toLowerCase()] !== undefined) {
-            const mctx = mc.getContext("2d");
-            mctx.imageSmoothingEnabled = false;
-            const idx = G.monsterSpriteMapping[monster.type.toLowerCase()];
-            const { row, col } = G.getSpritePosition(idx);
-            mctx.drawImage(G.monsterSpriteSheet, col * G.spriteWidth, row * G.spriteHeight, G.spriteWidth, G.spriteHeight, 0, 0, 70, 70);
-          }
-        }, 0);
       }
-
-      G.checkLevelUp();
-      G.updateTopBar();
-      G.displayCollection();
-      G.updateCurrentSwordDisplay(sword);
-      G.updatePityUI();
-      G.updatePrestigeUI();
-      G.updateAchievementsList();
-      G.updateBestiaryList();
-      G.updateDPS();
-
-      if (G.els.streakDisplay) {
-        if (G.comboStreak > 0) G.els.streakDisplay.textContent = `Streak: ${G.comboStreak} (best: ${G.gameState.bestKillStreak})`;
-        else G.els.streakDisplay.textContent = "No active streak";
-      }
-      G.saveGame();
-
-      if (specialAbilityTriggered) {
-        battleMessage.innerHTML = `⚔️ ${critTag}<span class="${sword.rarity}">${sword.name}</span> unleashed ${sword.specialPower}! Defeated ${monstersDefeated} ${monster.type}s!`;
-        battleMessage.style.color = sword.rarity === "legendary" ? "#f59e0b" : "#a855f7";
-        G.showNotification(`✨ ${sword.specialPower} activated! ${monstersDefeated}x rewards!`, sword.rarity === "legendary" ? "#f59e0b" : "#a855f7");
-      } else {
-        battleMessage.innerHTML = `⚔️ ${critTag}<span class="${sword.rarity}">${sword.name}</span> (${finalDamage.toFixed(1)} DMG) defeated <span style="color: ${theme.color}">${monster.type}</span> (${monsterHp} HP) in ${turnsToKill} turns!`;
-      }
-    }, turnsToKill * 400);
-
-    if (G.autoPlay && G.currentSwordIndex !== null && G.gameState.activeSwords[sword.index] > 0) {
-      const delays = { legendary: 1000, epic: 2000, rare: 3000, common: 4000 };
-      const totalDelay = (delays[sword.rarity] || 3000) + turnsToKill * 400;
-      setTimeout(() => G.simulateBattle(sword), totalDelay);
-    } else {
-      G.els.playPauseButton.textContent = "Battle";
       G.autoPlay = false;
+      G.ui.updatePlayButton();
+    };
+
+    pending = { timer: setTimeout(finish, battleMs), done: false, finish };
+
+    G.saveGame();
+  };
+
+  // ---------- skip current battle ----------
+  G.skipBattle = function () {
+    if (pending && !pending.done) {
+      clearTimeout(pending.timer);
+      pending.done = true;
+      const fn = pending.finish;
+      pending = null;
+      fn();
     }
   };
 
-  G.showFloatingDamage = function (damage, isCrit) {
-    const display = G.els.currentMonsterDisplay;
-    if (!display) return;
-    const el = document.createElement("div");
-    el.className = `floating-dmg ${isCrit ? "crit" : ""}`;
-    el.textContent = isCrit ? `⚡${Math.round(damage)}!` : `-${Math.round(damage)}`;
-    el.style.left = "50%";
-    el.style.top = "10%";
-    el.style.transform = "translateX(-50%)";
-    el.style.color = isCrit ? "#ef4444" : "#f97316";
-    display.appendChild(el);
-    setTimeout(() => el.remove(), 1000);
-  };
-
-  G.showMonsterHPBar = function (current, max) {
-    const display = G.els.currentMonsterDisplay;
-    if (!display) return;
-    let bar = display.querySelector(".monster-hp-bar");
-    if (!bar) {
-      bar = document.createElement("div");
-      bar.className = "monster-hp-bar";
-      display.appendChild(bar);
+  // ---------- play / pause toggle ----------
+  G.toggleBattle = function () {
+    if (G.currentSwordIndex === null || !G.gameState.activeSwords[G.currentSwordIndex]) {
+      G.toast("Select a blade first!", "#35c2ff");
+      G.openDrawer("armory");
+      return;
     }
-    let fill = bar.querySelector(".monster-hp-fill");
-    if (!fill) {
-      fill = document.createElement("div");
-      fill.className = "monster-hp-fill";
-      bar.appendChild(fill);
+    if (G.autoPlay || G.isBattling()) {
+      G.stopBattle();
+      return;
     }
-    fill.style.width = `${(current / max) * 100}%`;
+    G.autoPlay = true;
+    G.ui.updatePlayButton();
+    const sw = G.swordData.find((s) => s.index === G.currentSwordIndex);
+    if (sw) G.simulateBattle(sw);
   };
 })();
