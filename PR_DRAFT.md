@@ -24,8 +24,9 @@ Branch: `v2` → `main` (9 feature commits, no push yet)
 - **Legacy save migration**: `idle_blade_master_save` (v1) → `idle_blade_master_v3`.
 
 ### Data
-- `swords.json`: 30 swords, each with new `element` field.
-- `monsters.json`: unchanged (64 monsters; category derived via regex map in `js/core.js`).
+- `js/data.swords.js`: 30 swords, each with new `element` field (inlined as JS so the game runs from `file://` without a server).
+- `js/data.monsters.js`: 64 monsters (unchanged content; category derived via regex map in `js/core.js`).
+- Former `swords.json` / `monsters.json` replaced by the above script-loaded data to avoid CORS fetch failures when opening `index.html` directly.
 
 ## What was removed
 - `js/overlay.js`, `script.bak.js`

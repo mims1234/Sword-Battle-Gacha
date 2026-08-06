@@ -1,4 +1,5 @@
-[
+// data: 30 swords (element counters)
+window.SWORDS_DATA = [
     { "name": "Rusty Sword", "description": "A worn-out sword, barely holding its edge.", "rarity": "common", "attack": 5, "defense": 1, "element": "steel", "specialPower": null, "index": 0 },
     { "name": "Bent Sword", "description": "Slightly bent, but still usable.", "rarity": "common", "attack": 7, "defense": 2, "element": "steel", "specialPower": null, "index": 1 },
     { "name": "Chipped Sword", "description": "Has a few chips, reducing its effectiveness.", "rarity": "common", "attack": 6, "defense": 1, "element": "steel", "specialPower": null, "index": 2 },
@@ -29,4 +30,4 @@
     { "name": "Caladbolg", "description": "A powerful sword from Irish mythology.", "rarity": "legendary", "attack": 35, "defense": 25, "element": "holy", "specialPower": "Lightning Storm", "index": 27 },
     { "name": "Zweihander", "description": "A massive two-handed sword blessed by gods.", "rarity": "legendary", "attack": 38, "defense": 22, "element": "steel", "specialPower": "Divine Slash", "index": 28 },
     { "name": "Kusanagi", "description": "The sacred sword of Japanese mythology.", "rarity": "legendary", "attack": 36, "defense": 24, "element": "ice", "specialPower": "Reality Break", "index": 29 }
-]
+];

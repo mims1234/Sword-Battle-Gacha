@@ -1,4 +1,5 @@
-[
+// data: 64 monsters
+window.MONSTERS_DATA = [
   { "type": "orc", "health": 50, "difficulty": 1, "chestReward": 0 },
   { "type": "orc wizard", "health": 60, "difficulty": 1, "chestReward": 0 },
   { "type": "goblin", "health": 30, "difficulty": 1, "chestReward": 0 },
@@ -63,4 +64,4 @@
   { "type": "small writhing mass", "health": 50, "difficulty": 1, "chestReward": 0 },
   { "type": "large writhing mass", "health": 100, "difficulty": 2, "chestReward": 0 },
   { "type": "writhing humanoid", "health": 150, "difficulty": 3, "chestReward": 0 }
-]
+];

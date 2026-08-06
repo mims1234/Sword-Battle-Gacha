@@ -50,27 +50,6 @@
     }, 900);
   }
 
-  // ---------- DATA LOAD ----------
-  function loadData() {
-    fetch("swords.json")
-      .then((r) => r.json())
-      .then((data) => {
-        G.swordData = data;
-        G.ui.updateAll();
-      })
-      .catch((e) => console.error("swords.json:", e));
-
-    fetch("monsters.json")
-      .then((r) => r.json())
-      .then((data) => {
-        G.monsterTypes = data;
-        G.ui.updateBestiary();
-        G.ui.updateStats();
-        G.ui.updateAll();
-      })
-      .catch((e) => console.error("monsters.json:", e));
-  }
-
   // ---------- BINDINGS ----------
   function bind() {
     const $ = G.els;
@@ -247,7 +226,6 @@
     G.ui.updateAll();
 
     bind();
-    loadData();
     runBoot();
 
     setInterval(G.saveGame, 30000);

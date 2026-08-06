@@ -121,8 +121,8 @@ G.gameState = {
 };
 
 G.collection = G.gameState.collection;
-G.swordData = [];
-G.monsterTypes = [];
+G.swordData = window.SWORDS_DATA || [];
+G.monsterTypes = window.MONSTERS_DATA || [];
 G.isImageLoaded = false;
 G.isMonsterImageLoaded = false;
 G.currentSwordIndex = null;
