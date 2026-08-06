@@ -47,6 +47,32 @@
     border-left: var(--border-soft);
     transform: translateX(104%);
   }
+  #armoryDrawer .drawer-body {
+    padding: 8px;
+  }
+  #armoryDrawer .filter-row {
+    padding: 8px;
+  }
+  #armoryDrawer .collection {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 2px;
+  }
+  #armoryDrawer .sword-item {
+    aspect-ratio: 1;
+    border-radius: 10px;
+  }
+  #armoryDrawer .sword-item canvas {
+    width: 58%;
+  }
+  #armoryDrawer .sword-item .el-dot {
+    width: 9px;
+    height: 9px;
+  }
+  #armoryDrawer .sword-item .sword-uses-badge {
+    padding: 1px 4px;
+    font-size: 9px;
+  }
   .drawer-scrim {
     display: none;
   }
