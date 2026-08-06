@@ -2,299 +2,311 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Idle Blade Master</title>
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
+        <meta name="theme-color" content="#0a0a12" />
+        <title>Idle Blade Master — Reforged</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
             href="https://fonts.googleapis.com/css2?family=Pirata+One&family=MedievalSharp&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap"
             rel="stylesheet"
         />
-        <link rel="stylesheet" href="css/index.css?v=2.0" />
+        <link rel="stylesheet" href="css/index.css?v=3.0" />
     </head>
     <body>
-        <div class="ambient-glow"></div>
-        <div class="stone-texture"></div>
-        <div class="ambient-ember" id="emberContainer"></div>
+        <!-- ===================== BOOT / LOADING ===================== -->
+        <div id="boot" class="boot">
+            <div class="boot-ember"></div>
+            <div class="boot-mark">⚔</div>
+            <h1 class="boot-title">
+                <span>I</span><span>d</span><span>l</span><span>e</span>
+                <span class="boot-gap">B</span><span>l</span><span>a</span
+                ><span>d</span><span>e</span>
+                <span class="boot-gap">M</span><span>a</span><span>s</span
+                ><span>t</span><span>e</span><span>r</span>
+            </h1>
+            <p class="boot-sub">REFORGED</p>
+            <div class="boot-bar"><div class="boot-fill"></div></div>
+        </div>
 
-        <div class="app-container">
-            <header class="game-header">
-                <div class="header-brand">
-                    <span class="brand-rune">ᚠ</span>
-                    <h1 class="game-title">Idle Blade Master</h1>
-                    <span class="brand-rune">ᚦ</span>
+        <!-- ===================== APP ===================== -->
+        <div id="app" class="app hidden">
+            <div class="bg-layer">
+                <div class="bg-nebula"></div>
+                <div class="bg-ember" id="emberField"></div>
+                <div class="bg-vignette"></div>
+            </div>
+
+            <!-- ===== HUD ===== -->
+            <header class="hud" id="hud">
+                <div class="hud-row hud-top">
+                    <div class="hud-brand">
+                        <span class="brand-rune">ᚠ</span>
+                        <span class="brand-name">Idle Blade Master</span>
+                    </div>
+                    <div class="hud-currency">
+                        <button class="chip chip-chest" id="chestChip" title="Open chests">
+                            <span class="chip-ico">◆</span><span id="chestCount">0</span>
+                        </button>
+                        <button class="chip chip-soul" id="soulChip" title="Souls — spend in the Forge">
+                            <span class="chip-ico">✦</span><span id="soulCount">0</span>
+                        </button>
+                    </div>
+                    <div class="hud-menu">
+                        <button class="icon-btn" id="menuButton" aria-label="Menu">☰</button>
+                    </div>
                 </div>
-                <div class="header-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                        <div class="level-text">Level 1</div>
+
+                <div class="hud-row hud-bars">
+                    <div class="hud-bar">
+                        <div class="hud-bar-label">
+                            <span>⛨ Level <b id="levelText">1</b></span>
+                            <span id="levelProgText">0 / 10</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill" id="levelFill"></div></div>
                     </div>
-                    <div class="pity-bar" id="pityBar">
-                        <div class="pity-fill" id="pityFill"></div>
-                        <span class="pity-text" id="pityText">Pity: 0</span>
+                    <div class="hud-bar hud-bar-pity">
+                        <div class="hud-bar-label">
+                            <span>★ Pity</span>
+                            <span id="pityText">Epic in 50</span>
+                        </div>
+                        <div class="bar-track"><div class="bar-fill" id="pityFill"></div></div>
                     </div>
                 </div>
-                <div class="header-stats">
-                    <div class="stat-block">
-                        <span class="stat-icon icon-kills">⚔</span>
-                        <span class="monsters-killed">0</span>
-                    </div>
-                    <div class="stat-block">
-                        <span class="stat-icon icon-chests">◆</span>
-                        <span class="chests">5</span>
-                    </div>
-                    <div
-                        class="stat-block"
-                        id="prestigeBlock"
-                        style="display: none"
-                    >
-                        <span class="stat-icon icon-prestige">♜</span>
-                        <span id="prestigeCount">0</span>
-                    </div>
+
+                <div class="hud-row hud-stats">
+                    <span class="stat"><span class="stat-ico">💀</span><span id="killsStat">0</span></span>
+                    <span class="stat"><span class="stat-ico">🔥</span><span id="streakStat">0</span></span>
+                    <span class="stat"><span class="stat-ico">⚡</span><span id="dpsStat">0/s</span></span>
+                    <span class="stat stat-prestige" id="prestigeStatWrap" style="display:none">
+                        <span class="stat-ico">♜</span><span id="prestigeStat">0</span>
+                    </span>
                 </div>
             </header>
 
-            <div class="arena-bar">
-                <div class="arena-controls">
-                    <button id="pullButton" class="btn-arena btn-arena-forge">
-                        Forge
-                    </button>
-                </div>
-                <div class="arena-display">
-                    <div class="arena-slot current-monster-display">
-                        <div class="slot-label">Foe</div>
-                    </div>
-                    <div class="vs-text">VS</div>
-                    <div class="arena-slot current-sword">
-                        <div class="slot-label">Blade</div>
-                    </div>
-                </div>
-                <div class="arena-controls">
-                    <button id="playPauseButton" class="btn-arena" disabled>
-                        Battle
-                    </button>
-                </div>
-            </div>
-
-            <button id="menuButton" class="menu-button">☰</button>
-
-            <div class="main-layout">
-                <aside class="sidebar-left" id="sidebarLeft">
-                    <div class="panel-header">
-                        <h2>Armory</h2>
-                        <span class="collection-count" id="collectionCount"
-                            >0/30</span
-                        >
-                    </div>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" data-filter="all">
-                            All
-                        </button>
-                        <button class="filter-btn" data-filter="common">
-                            Stone
-                        </button>
-                        <button class="filter-btn" data-filter="rare">
-                            Frost
-                        </button>
-                        <button class="filter-btn" data-filter="epic">
-                            Arcane
-                        </button>
-                        <button class="filter-btn" data-filter="legendary">
-                            Forge
-                        </button>
-                    </div>
-                    <div id="collection" class="collection">
-                        <div id="allCollection"></div>
-                    </div>
-                    <div class="panel-actions" style="justify-content: center">
-                        <button
-                            id="bestiaryButton"
-                            class="btn-sm btn-iron"
-                            style="width: 100%"
-                        >
-                            Bestiary
-                        </button>
-                    </div>
-                </aside>
-
-                <div class="overlay-container"></div>
-                <main class="center-panel">
-                    <div class="gacha-section forge-pulse">
-                        <div id="chestAnimation" class="chest-animation"></div>
-                        <div id="result"></div>
-                    </div>
-                    <div
-                        class="combo-display"
-                        id="comboDisplay"
-                        style="display: none"
-                    >
-                        <span class="combo-fire">🔥</span>
-                        <span id="comboCount">0</span>x Streak
-                        <span class="combo-bonus" id="comboBonus">(+0%)</span>
-                    </div>
-                </main>
-
-                <aside class="sidebar-right" id="sidebarRight">
-                    <div class="panel-tabs">
-                        <button class="tab-btn active" data-tab="log">
-                            Log
-                        </button>
-                        <button class="tab-btn" data-tab="achievements">
-                            Feats
-                        </button>
-                        <button class="tab-btn" data-tab="bestiary">
-                            Bestiary
-                        </button>
-                    </div>
-                    <div class="tab-content active" id="tabLog">
-                        <div id="notifications"></div>
-                    </div>
-                    <div class="tab-content" id="tabAchievements">
-                        <div
-                            class="filter-buttons"
-                            id="featFilters"
-                            style="justify-content: center; margin-bottom: 8px"
-                        >
-                            <button class="filter-btn active" data-filter="all">
-                                All
-                            </button>
-                            <button class="filter-btn" data-filter="completed">
-                                Completed
-                            </button>
+            <!-- ===== STAGE ===== -->
+            <main class="stage" id="stage">
+                <section class="arena" id="arena">
+                    <div class="arena-side arena-foe">
+                        <div class="arena-slot" id="foeSlot">
+                            <div class="slot-label">Foe</div>
                         </div>
-                        <div id="achievementsList"></div>
+                        <div class="monster-hp" id="foeHpBar" style="display:none">
+                            <div class="monster-hp-fill" id="foeHpFill"></div>
+                            <span class="monster-hp-text" id="foeHpText"></span>
+                        </div>
                     </div>
-                    <div class="tab-content" id="tabBestiary">
-                        <div id="bestiaryList"></div>
+                    <div class="arena-vs"><span class="vs-word">VS</span><span class="vs-line"></span></div>
+                    <div class="arena-side arena-blade">
+                        <div class="arena-slot" id="bladeSlot">
+                            <div class="slot-label">Blade</div>
+                        </div>
+                        <div class="arena-blade-info">
+                            <span class="arena-blade-name" id="bladeName">—</span>
+                            <span class="arena-blade-uses" id="bladeUses">—</span>
+                        </div>
                     </div>
-                </aside>
-            </div>
+                </section>
 
-            <footer class="game-footer">
-                <div class="footer-info" id="footerInfo">
-                    <span id="streakDisplay">No active streak</span>
-                    <span class="footer-sep">|</span>
-                    <span id="pullsDisplay">Pulls: 0</span>
-                    <span class="footer-sep">|</span>
-                    <span id="dpsDisplay">DPS: 0</span>
-                </div>
-                <div class="footer-actions">
-                    <button id="saveButton" class="btn-tiny btn-iron">
-                        💾 Save
-                    </button>
-                    <button
-                        id="prestigeButton"
-                        class="btn-tiny btn-copper"
-                        disabled
-                    >
-                        ♜ Prestige
-                    </button>
-                    <button id="resetButton" class="btn-tiny btn-danger">
-                        Reset
-                    </button>
-                </div>
-            </footer>
-        </div>
-
-        <div id="bestiaryModal" class="modal-backdrop" style="display: none">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Monster Bestiary</h2>
-                    <button class="modal-close" id="bestiaryClose">✕</button>
-                </div>
-                <div id="bestiaryGrid" class="bestiary-grid"></div>
-            </div>
-        </div>
-
-        <div id="forgeModal" class="modal-backdrop" style="display: none">
-            <div class="modal-content forge-modal">
-                <div class="modal-header">
-                    <h2>Blade Forge</h2>
-                    <button class="modal-close" id="forgeClose">✕</button>
-                </div>
-                <div class="forge-body">
-                    <p style="margin-bottom: 8px; color: #ccc">
-                        Select a sword to forge into a higher rarity.
-                    </p>
-                    <div
-                        id="forgeSelectionGrid"
-                        class="collection"
-                        style="
-                            max-height: 250px;
-                            overflow-y: auto;
-                            display: grid;
-                            grid-template-columns: repeat(4, 1fr);
-                            gap: 4px;
-                            margin-bottom: 12px;
-                        "
-                    ></div>
-                    <div
-                        id="forgeActionArea"
-                        style="
-                            display: none;
-                            flex-direction: column;
-                            align-items: center;
-                            gap: 8px;
-                            padding-top: 12px;
-                            border-top: 1px solid rgba(249, 115, 22, 0.2);
-                        "
-                    >
-                        <div
-                            id="forgeSelectedSlot"
-                            class="sword-item active"
-                            style="
-                                width: 64px;
-                                height: 64px;
-                                pointer-events: none;
-                            "
-                        ></div>
-                        <div
-                            id="forgeCostText"
-                            style="
-                                font-size: 14px;
-                                color: #aaa;
-                                text-align: center;
-                            "
-                        ></div>
-                        <button id="forgeExecute" class="btn-forge">
-                            Forge
+                <section class="stage-actions" id="stageActions">
+                    <div class="action-group action-open">
+                        <button class="btn-prime" id="pullButton">
+                            <span class="btn-prime-ico">◆</span>
+                            <span class="btn-prime-label" id="pullButtonLabel">Open Chest</span>
+                            <span class="btn-prime-cost" id="pullCost">x1</span>
                         </button>
+                        <button class="btn-ghost" id="pullButtonX3">Open x3</button>
+                    </div>
+                    <div class="action-group action-battle">
+                        <button class="btn-arena" id="playPauseButton">⚔ Battle</button>
+                        <div class="speed-group" id="speedGroup">
+                            <button class="speed-btn active" data-speed="1">1×</button>
+                            <button class="speed-btn" data-speed="2">2×</button>
+                            <button class="speed-btn" data-speed="4">4×</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="combat-feed" id="combatFeed">
+                    <div class="feed-line" id="feedLine">Select a blade, then battle monsters for chests.</div>
+                    <button class="feed-skip" id="feedSkip" title="Skip delay">⏭</button>
+                </section>
+            </main>
+
+            <!-- ===== TAB NAV ===== -->
+            <nav class="tabbar" id="tabbar">
+                <button class="tab" data-tab="forge"><span class="tab-ico">🔨</span><span class="tab-label">Forge</span></button>
+                <button class="tab" data-tab="armory"><span class="tab-ico">🗡️</span><span class="tab-label">Armory</span></button>
+                <button class="tab tab-center" data-tab="arena"><span class="tab-ico tab-ico-big">⚔</span><span class="tab-label">Battle</span></button>
+                <button class="tab" data-tab="quests"><span class="tab-ico">📜</span><span class="tab-label">Quests</span><span class="tab-badge" id="questBadge" style="display:none">1</span></button>
+                <button class="tab" data-tab="feats"><span class="tab-ico">🏆</span><span class="tab-label">Feats</span></button>
+            </nav>
+
+            <!-- ===== DRAWERS ===== -->
+            <div class="drawer-scrim" id="drawerScrim"></div>
+
+            <aside class="drawer" id="armoryDrawer" data-drawer="armory">
+                <div class="drawer-head">
+                    <h2>Armory</h2>
+                    <span class="drawer-count" id="collectionCount">0/0</span>
+                    <button class="drawer-close" data-close="armory">✕</button>
+                </div>
+                <div class="filter-row" id="armoryFilters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="common">Stone</button>
+                    <button class="filter-btn" data-filter="rare">Frost</button>
+                    <button class="filter-btn" data-filter="epic">Arcane</button>
+                    <button class="filter-btn" data-filter="legendary">Forge</button>
+                </div>
+                <div class="drawer-body" id="collection"></div>
+                <div class="drawer-foot">
+                    <button class="btn-ghost" id="bestiaryButton">📖 Bestiary</button>
+                    <button class="btn-ghost" id="forgeShortcut">🔨 Forge</button>
+                </div>
+            </aside>
+
+            <aside class="drawer" id="questDrawer" data-drawer="quests">
+                <div class="drawer-head">
+                    <h2>Quests</h2>
+                    <button class="drawer-close" data-close="quests">✕</button>
+                </div>
+                <div class="drawer-body" id="questList"></div>
+            </aside>
+
+            <aside class="drawer" id="featsDrawer" data-drawer="feats">
+                <div class="drawer-head">
+                    <h2>Feats</h2>
+                    <button class="drawer-close" data-close="feats">✕</button>
+                </div>
+                <div class="drawer-body" id="featsList"></div>
+            </aside>
+
+            <aside class="drawer drawer-wide" id="bestiaryDrawer" data-drawer="bestiary">
+                <div class="drawer-head">
+                    <h2>Bestiary</h2>
+                    <span class="drawer-count" id="bestiaryCount"></span>
+                    <button class="drawer-close" data-close="bestiary">✕</button>
+                </div>
+                <div class="drawer-body bestiary-grid" id="bestiaryGrid"></div>
+            </aside>
+
+            <!-- ===== MENU SHEET ===== -->
+            <div class="sheet-scrim" id="sheetScrim"></div>
+            <div class="sheet" id="menuSheet">
+                <div class="sheet-head">
+                    <h2>Menu</h2>
+                    <button class="drawer-close" id="menuSheetClose">✕</button>
+                </div>
+                <div class="sheet-body">
+                    <div class="menu-stat-row">
+                        <span>Total Pulls</span><b id="menuPulls">0</b>
+                    </div>
+                    <div class="menu-stat-row">
+                        <span>Legendary Pulls</span><b id="menuLegendary">0</b>
+                    </div>
+                    <div class="menu-stat-row">
+                        <span>Total Damage</span><b id="menuDamage">0</b>
+                    </div>
+                    <div class="menu-stat-row">
+                        <span>Best Streak</span><b id="menuStreak">0</b>
+                    </div>
+                    <div class="menu-stat-row">
+                        <span>Prestige</span><b id="menuPrestige">0</b>
+                    </div>
+                    <div class="menu-divider"></div>
+                    <div class="menu-enchant">
+                        <div class="menu-enchant-info">
+                            <b>Forge Mastery</b>
+                            <span>Permanent +5% damage per level</span>
+                        </div>
+                        <div class="menu-enchant-meta">
+                            <span id="enchantLevel">Lv 0</span>
+                            <span id="enchantCost">✦ 150</span>
+                        </div>
+                        <button class="btn-ghost" id="enchantButton">Enchant</button>
+                    </div>
+                    <div class="menu-divider"></div>
+                    <button class="menu-row" id="saveButton">💾 Save Now</button>
+                    <button class="menu-row" id="prestigeButton" disabled>♜ Prestige (Level 50)</button>
+                    <button class="menu-row menu-row-danger" id="resetButton">🗑 Reset All Progress</button>
+                </div>
+            </div>
+
+            <!-- ===== MODALS ===== -->
+            <div class="modal" id="forgeModal">
+                <div class="modal-card">
+                    <div class="modal-head">
+                        <h2>Blade Forge</h2>
+                        <button class="drawer-close" id="forgeClose">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-hint">Fuse duplicate blades into a higher rarity. Costs <b>5 Stone</b>, <b>10 Frost</b>, <b>25 Arcane</b> copies.</p>
+                        <div class="forge-grid" id="forgeSelectionGrid"></div>
+                        <div class="forge-action" id="forgeActionArea" style="display:none">
+                            <div class="forge-selected" id="forgeSelectedSlot"></div>
+                            <div id="forgeCostText" class="forge-cost"></div>
+                            <button class="btn-prime" id="forgeExecute">Forge</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="swordPreview" class="modal-backdrop" style="display: none">
-            <div class="modal-content preview-modal">
-                <div class="modal-header">
-                    <h2 id="previewName">Sword Name</h2>
-                    <button class="modal-close" id="previewClose">✕</button>
-                </div>
-                <div class="preview-body">
-                    <canvas
-                        id="previewCanvas"
-                        width="128"
-                        height="128"
-                    ></canvas>
-                    <div class="preview-rarity" id="previewRarity"></div>
-                    <p class="preview-desc" id="previewDesc"></p>
-                    <div class="preview-stats" id="previewStats"></div>
-                    <div class="preview-power" id="previewPower"></div>
-                    <div class="preview-uses" id="previewUses"></div>
-                    <button id="previewSelectBtn" class="btn-forge" disabled>
-                        No Uses Left
-                    </button>
+            <div class="modal" id="previewModal">
+                <div class="modal-card preview-card">
+                    <div class="modal-head">
+                        <h2 id="previewName">—</h2>
+                        <button class="drawer-close" id="previewClose">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="preview-sprite" id="previewSprite"></div>
+                        <div class="preview-rarity" id="previewRarity"></div>
+                        <p class="preview-desc" id="previewDesc"></p>
+                        <div class="preview-stats">
+                            <span>⚔ <b id="previewAtk">0</b></span>
+                            <span>🛡 <b id="previewDef">0</b></span>
+                            <span id="previewElement">✦ Steel</span>
+                        </div>
+                        <div class="preview-power" id="previewPower"></div>
+                        <div class="preview-uses" id="previewUses"></div>
+                        <button class="btn-prime" id="previewSelectBtn" disabled>No Uses Left</button>
+                    </div>
                 </div>
             </div>
+
+            <div class="modal" id="offlineModal">
+                <div class="modal-card offline-card">
+                    <div class="modal-head">
+                        <h2>Welcome Back!</h2>
+                        <button class="drawer-close" id="offlineClose">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="modal-hint" id="offlineTime"></p>
+                        <div class="offline-rewards" id="offlineRewards"></div>
+                        <button class="btn-prime" id="offlineClaim">Claim Rewards</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== FX LAYERS ===== -->
+            <div class="fx-layer" id="toastLayer"></div>
+            <div class="fx-layer fx-banner-layer" id="bannerLayer"></div>
+            <div class="fx-layer fx-burst-layer" id="burstLayer"></div>
+            <div class="fx-shake" id="shakeLayer"></div>
         </div>
 
         <script>
-            const APP_VERSION = "2.0";
+            const APP_VERSION = "3.0";
         </script>
-        <script src="js/core.js?v=2.0"></script>
-        <script src="js/overlay.js?v=2.0"></script>
-        <script src="js/battle.js?v=2.0"></script>
-        <script src="js/ui.js?v=2.0"></script>
-        <script src="js/main.js?v=2.0"></script>
+        <script src="js/vendor/anime.min.js?v=3.0"></script>
+        <script src="js/core.js?v=3.0"></script>
+        <script src="js/fx.js?v=3.0"></script>
+        <script src="js/gacha.js?v=3.0"></script>
+        <script src="js/battle.js?v=3.0"></script>
+        <script src="js/quests.js?v=3.0"></script>
+        <script src="js/ui.js?v=3.0"></script>
+        <script src="js/main.js?v=3.0"></script>
     </body>
 </html>
