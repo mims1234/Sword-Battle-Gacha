@@ -17,6 +17,9 @@
   .tabbar {
     display: none;
   }
+  .hud-quick-nav {
+    display: flex;
+  }
 
   /* desktop: drawers become fixed side rails */
   .drawer {

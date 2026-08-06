@@ -90,6 +90,13 @@
       });
     });
 
+    document.querySelectorAll(".quick-nav-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const name = button.dataset.quick;
+        if (name === "armory" || name === "bestiary") G.ui.openDrawer(name);
+      });
+    });
+
     // drawers
     document.querySelectorAll(".drawer-close, [data-close]").forEach((btn) => {
       btn.addEventListener("click", () => {

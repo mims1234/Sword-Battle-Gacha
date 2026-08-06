@@ -202,12 +202,20 @@ G.getSpritePosition = function (spriteIndex) {
 };
 
 G.drawSprite = function (ctx, sheet, spriteIndex, size) {
-  const { row, col } = G.getSpritePosition(spriteIndex);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(
-    sheet, col * G.spriteWidth, row * G.spriteHeight,
-    G.spriteWidth, G.spriteHeight, 0, 0, size, size,
-  );
+  const swordSheet = sheet === G.spriteSheet;
+  const { row, col } = swordSheet
+    ? { row: Math.floor(spriteIndex / 6), col: spriteIndex % 6 }
+    : G.getSpritePosition(spriteIndex);
+  const canvas = ctx.canvas;
+  const cols = swordSheet ? 6 : 12;
+  const rows = swordSheet ? 5 : G.spritesPerRowCounts.length;
+
+  // CSS backgrounds avoid Brave's file:// canvas tainting while preserving pixel crops.
+  canvas.style.imageRendering = "pixelated";
+  canvas.style.backgroundImage = `url("${sheet.currentSrc || sheet.src}")`;
+  canvas.style.backgroundRepeat = "no-repeat";
+  canvas.style.backgroundSize = `${cols * 100}% ${rows * 100}%`;
+  canvas.style.backgroundPosition = `${cols > 1 ? (col / (cols - 1)) * 100 : 0}% ${rows > 1 ? (row / (rows - 1)) * 100 : 0}%`;
 };
 
 G.drawSword = function (canvas, swordIndex, size) {
