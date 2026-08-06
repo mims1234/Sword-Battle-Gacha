@@ -5,7 +5,13 @@ const G = Game;
 
 // ===================== SPRITES =====================
 G.spriteSheet = new Image();
-G.spriteSheet.onload = () => { G.isImageLoaded = true; };
+G.spriteSheet.onload = () => {
+  G.isImageLoaded = true;
+  if (G.ui) {
+    G.ui.updateBlade();
+    G.ui.renderCollection();
+  }
+};
 G.spriteWidth = 32;
 G.spriteHeight = 32;
 G.scale = 2;

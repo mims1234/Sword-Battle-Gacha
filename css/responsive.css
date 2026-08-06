@@ -20,8 +20,9 @@
 
   /* desktop: drawers become fixed side rails */
   .drawer {
-    top: auto;
+    top: 0;
     bottom: 0;
+    height: auto;
     width: 320px;
     border-right: var(--border-soft);
     box-shadow: none;

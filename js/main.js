@@ -224,6 +224,7 @@
     const migrated = G.loadGame();
     G.quests.init();
     G.ui.updateAll();
+    G.ui.closeDrawers();
 
     bind();
     runBoot();
