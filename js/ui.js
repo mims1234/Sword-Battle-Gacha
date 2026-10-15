@@ -301,9 +301,10 @@
     }).join("") + `</div>`;
   }
 
+  function slider(k, label) { const v = Math.round((k === "musicVol" ? G.audio.musicVol() : G.audio.sfxVol()) * 100); return `<label class="volrow" for="vol_${k}"><span>${label}</span><input type="range" min="0" max="100" step="5" id="vol_${k}" data-vol="${k}" value="${v}"><b id="volv_${k}">${v}%</b></label>`; }
   function pSettings() {
     const s = G.s, t = (k, label, hint) => `<div class="claimrow"><span><b>${label}</b><small>${hint}</small></span><button class="btn${s.set[k] ? " gold" : ""}" data-act="set" data-k="${k}">${s.set[k] ? "On" : "Off"}</button></div>`;
-    return t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
+    return t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + slider("musicVol", "Music volume") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + slider("sfxVol", "Effects volume") + `<p class="hint">By default music is about 40% louder than effects, so effects only tell you something happened.</p>` + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
       `<h3>Stats</h3><div class="log"><p>Best floor ${s.best} · ${G.fmt(s.kills)} monsters defeated · ${s.pulls} summons</p><p>${s.rebirths} rebirths · ${s.stat.wipes} defeats · ${s.secrets} secrets found</p><p>${G.fmt(s.stat.dmg)} total damage · ${G.fmtTime(s.stat.online)} played</p></div>
       <h3>Save</h3><div class="rowbtns"><button class="btn" data-act="export">Copy save code</button><button class="btn" data-act="importAsk">Load save code</button><button class="btn danger" data-act="resetAsk">Delete save</button></div>
       <p class="hint">Idle Blade Master ${G.VERSION}. Keyboard: 1–5 cast ultimates, Space pauses, L levels up, S opens Summon.</p>`;
@@ -545,6 +546,12 @@
       const t = e.target.closest("[data-act]"); if (!t || t.disabled) return;
       G.audio.unlock();
       const fn = A[t.dataset.act]; if (fn) { fn(t.dataset, t); if (t.classList.contains("btn") && !["lvl", "lvlAll"].includes(t.dataset.act)) G.audio.play("click"); }
+    });
+    // Volume sliders update live; the panel is not re-rendered while dragging.
+    document.addEventListener("input", (e) => {
+      const k = e.target.dataset && e.target.dataset.vol; if (!k) return;
+      G.s.set[k] = +e.target.value / 100; const out = $("volv_" + k); if (out) out.textContent = e.target.value + "%";
+      G.audio.unlock(); G.audio.applyVolumes(); if (k === "sfxVol") { clearTimeout(U.volT); U.volT = setTimeout(() => G.audio.play("drop"), 150); }
     });
     $("modal").addEventListener("click", (e) => { if (e.target === $("modal") && !G.paused) U.closeModal(); });
     // Touch screens have no drag-and-drop: press and hold a blade, then drag it onto a slot.

@@ -52,8 +52,8 @@ const SFX = {
   secret: { kind: "sting", max: 2, prompt: "A short magical discovery sparkle: twinkling chimes and a soft harp, then complete silence." },
   drop: { kind: "sting", max: 1, prompt: "A single glittering coin and gem pickup chime, very short, then complete silence." },
   ult: { kind: "sting", max: 1.8, prompt: "A powerful magical blast: a whoosh into a deep boom with a cymbal crash, then complete silence." },
-  hit: { kind: "hits", max: 0.45, prompt: "Isolated metal sword clash hits, eight separate hits, each hit followed by one full second of silence. Percussion only, no melody, no music." },
-  kill: { kind: "hits", max: 0.6, prompt: "Isolated heavy impact thuds like a body hitting a wooden floor, eight separate hits, each followed by one full second of silence. Percussion only, no melody." },
+  // Sword strikes are designed per element by tools/make-hits.mjs: a music model only makes rhythmic beats, not one-shot foley.
+  kill: { kind: "hits", max: 0.8, prompt: "Isolated heavy impact thuds like a body hitting a wooden floor, eight separate hits, each followed by one full second of silence. Percussion only, no melody." },
   click: { kind: "hits", max: 0.15, prompt: "Isolated soft wooden button clicks, eight separate clicks, each followed by one full second of silence. No music." },
 };
 
@@ -144,7 +144,7 @@ function makeSting(raw, out, max) {
   // (usually the gap between two notes) so the effect ends on a natural breath, not mid-note.
   if (!broke) { let lo = Infinity; for (let i = on + Math.floor(max * 55); i < Math.min(env.length, on + max * 100); i++) if (env[i] < lo) { lo = env[i]; end = i; } }
   const s = Math.max(0, on * 0.01 - 0.01), len = Math.min(max, (end - on) * 0.01 + (broke ? 0.25 : 0.05)), fo = Math.min(broke ? 0.4 : 0.15, len * 0.3);
-  ff(["-i", raw, "-af", `atrim=${s}:${s + len},asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=${Math.max(0, len - fo)}:d=${fo},loudnorm=I=-16:TP=-1.5`, ...enc, out]);
+  ff(["-i", raw, "-af", `atrim=${s}:${s + len},asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=${Math.max(0, len - fo)}:d=${fo},volume=${peakGain(x, s, s + len, -9)}`, ...enc, out]);
   return { secs: len };
 }
 // Hits: find each separate hit and save up to 6 of them as one-shots.
@@ -153,17 +153,20 @@ function sliceHits(raw, outBase, max) {
   let i = 0;
   while (i < env.length && hits.length < 6) {
     if (env[i] > thr) {
-      let j = i, quiet = 0; while (j < env.length && (j - i) * 0.005 < max) { if (env[j] < thr - 6) { if (++quiet > 12) break; } else quiet = 0; j++; }
+      const hp = Math.max(...env.slice(i, Math.min(env.length, i + 20))), floor = Math.max(-75, hp - 45);
+      let j = i, quiet = 0; while (j < env.length && (j - i) * 0.005 < max) { if (env[j] < floor) { if (++quiet > 6) break; } else { quiet = 0; if (j > i + 30 && env[j] > env[j - 1] + 12) break; } j++; } // stop at silence or at the next separate sound
       const loud = Math.max(...env.slice(i, j));
       if ((j - i) * 0.005 > 0.03 && loud > peak - 14) hits.push([i * 0.005, Math.min(max, (j - i) * 0.005 + 0.03)]);
       i = j + 40;
     } else i++;
   }
-  hits.forEach(([s, len], k) => ff(["-i", raw, "-af", `atrim=${Math.max(0, s - 0.004)}:${s + len},asetpts=PTS-STARTPTS,afade=t=in:d=0.003,afade=t=out:st=${len * 0.6}:d=${len * 0.4},loudnorm=I=-16:TP=-1.5`, ...enc, `${outBase}_${k + 1}.mp3`]));
+  hits.forEach(([s, len], k) => ff(["-i", raw, "-af", `atrim=${Math.max(0, s - 0.004)}:${s + len},asetpts=PTS-STARTPTS,afade=t=in:d=0.003,afade=t=out:st=${Math.max(0, len - 0.06)}:d=0.06,volume=${peakGain(x, s, s + len, -12)}`, ...enc, `${outBase}_${k + 1}.mp3`]));
   return { count: hits.length };
 }
 // The seam figure compares the half-seconds either side of the loop point. The join itself is
 // sample-continuous by construction; a few dB just means a note was dying away when the next began.
+// Short clips are too brief for loudness matching, so effects are levelled by their peak instead.
+function peakGain(x, from, to, targetDb) { let p = 1e-9; for (let i = Math.floor(from * SR); i < Math.min(x.length, to * SR); i++) p = Math.max(p, Math.abs(x[i])); return Math.pow(10, (targetDb - 20 * Math.log10(p)) / 20).toFixed(3); }
 const vocalHint = (t) => (t && /[a-z]{3,}\s+[a-z]{3,}/i.test(t.replace(/\[[^\]]*\]/g, "")) ? t.slice(0, 120).replace(/\s+/g, " ") : "");
 
 function writeLists() {

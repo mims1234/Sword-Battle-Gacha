@@ -1,13 +1,22 @@
 // ===================== SYNTHESIZED AUDIO (no files) =====================
 (function () {
   const G = window.G, A = (G.audio = {});
-  let ctx = null, master = null, lastHit = 0;
+  let ctx = null, master = null, sfxBus = null, lastHit = 0;
+  // Player volumes (0-1). By default music sits about 40% louder than effects:
+  // music carries the mood, effects only signal that something happened.
+  A.musicVol = () => (G.s.set.musicVol == null ? 0.8 : G.s.set.musicVol);
+  A.sfxVol = () => (G.s.set.sfxVol == null ? 0.55 : G.s.set.sfxVol);
+  A.applyVolumes = function () {
+    if (sfxBus) sfxBus.gain.setTargetAtTime(A.sfxVol(), ctx.currentTime, 0.05);
+    if (mus) mus.bus.gain.setTargetAtTime(1.1 * A.musicVol(), ctx.currentTime, 0.05);
+    if (rec) { const el = rec.els[rec.i]; if (!el._f) el.volume = Math.min(1, recVol()); }
+  };
 
   function ensure() {
     if (ctx) return true;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return false;
-    try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination); } catch (e) { ctx = null; }
+    try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination); sfxBus = ctx.createGain(); sfxBus.gain.value = A.sfxVol(); sfxBus.connect(master); } catch (e) { ctx = null; }
     return !!ctx;
   }
   A.unlock = function () { if (!A._pre) { A._pre = 1; A.preloadSfx(); } if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music()); else A.music(); };
@@ -17,14 +26,14 @@
     o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t + dur);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.3, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+    o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + dur + 0.02);
   }
   function noise(dur, vol, freq, delay) {
     const t = ctx.currentTime + (delay || 0), n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
     const src = ctx.createBufferSource(), g = ctx.createGain(), f = ctx.createBiquadFilter();
     f.type = "bandpass"; f.frequency.value = freq || 1800; g.gain.value = vol || 0.2;
-    src.buffer = buf; src.connect(f); f.connect(g); g.connect(master); src.start(t);
+    src.buffer = buf; src.connect(f); f.connect(g); g.connect(sfxBus); src.start(t);
   }
 
   const S = {
@@ -49,7 +58,8 @@
   // Each file gets a small pool of <audio> players so quick repeats can overlap; hits get a
   // slightly random pitch so a long fight never sounds like one sample on repeat.
   const SFX_MAP = { hit: "hit", crit: "hit", kill: "kill", boss: "boss", bossDown: "boss_down", ult: "ult", drop: "drop", level: "level", click: "click", wipe: "wipe", omen: "omen", secret: "secret", charge: "summon_charge", rebirth: "rebirth", unlock: "unlock" };
-  const SFX_VOL = { hit: 0.3, crit: 0.5, kill: 0.35, click: 0.25, drop: 0.45, level: 0.45, ult: 0.5 };
+  // Relative loudness per effect; frequent ones (hits, clicks) sit lowest. Scaled by the Effects volume.
+  const SFX_VOL = { hit: 0.5, crit: 0.7, kill: 0.55, click: 0.4, drop: 0.6, level: 0.65, ult: 0.7 };
   const pools = {};
   function playerFor(src) {
     const pool = pools[src] || (pools[src] = []);
@@ -62,7 +72,7 @@
     const el = playerFor(files[Math.floor(Math.random() * files.length)]);
     try { el.currentTime = 0; } catch (e) { /* not loaded yet */ }
     el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = false;
-    el.playbackRate = rate; el.volume = Math.min(1, vol);
+    el.playbackRate = rate; el.volume = Math.min(1, vol * A.sfxVol());
     el.play().catch(() => {});
     return true;
   }
@@ -71,9 +81,11 @@
   A.play = function (name, arg) {
     if (!G.s.set.sound) return;
     if (name === "hit" || name === "crit") { const n = performance.now(); if (n - lastHit < 70) return; lastHit = n; }
-    const rec = name === "reveal" ? (arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1") : SFX_MAP[name];
-    const rate = name === "hit" ? 0.9 + Math.random() * 0.2 : name === "crit" ? 0.82 : name === "kill" ? 0.92 + Math.random() * 0.16 : 1;
-    if (rec && sample(rec, rate, SFX_VOL[name] == null ? 0.6 : SFX_VOL[name])) return;
+    let rec = name === "reveal" ? (arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1") : SFX_MAP[name];
+    // Strikes sound like the blade that made them: each element has its own family of hits.
+    if (name === "hit" || name === "crit") { const k = name + "_" + (arg || "steel"); rec = (window.SFX_FILES || {})[k] ? k : name + "_steel"; }
+    const rate = name === "hit" || name === "crit" ? 0.94 + Math.random() * 0.12 : name === "kill" ? 0.92 + Math.random() * 0.16 : 1;
+    if (rec && sample(rec, rate, SFX_VOL[name] == null ? 0.8 : SFX_VOL[name])) return;
     return synth(name, arg);
   };
   function synth(name, arg) {
@@ -83,7 +95,7 @@
 
   A.on = function (e) {
     switch (e.t) {
-      case "hit": if (!e.sub) A.play(e.crit ? "crit" : "hit"); break;
+      case "hit": if (!e.sub) A.play(e.crit ? "crit" : "hit", e.el); break;
       case "kill": A.play(e.kind === "boss" || e.kind === "hollow" ? "bossDown" : "kill"); break;
       case "wave": if (e.boss) A.play("boss"); break;
       case "ult": A.play("ult"); break;
@@ -150,7 +162,8 @@
   // ---------- recorded music (assets/music, made by tools/make-music.mjs) ----------
   // Two <audio> players take turns: a few seconds before one ends, the other starts from the top
   // and they cross-fade, so the loop never clicks or gaps. Works from file:// too.
-  const XF = 2.5, REC_VOL = 0.5;
+  const XF = 2.5;
+  const recVol = () => A.musicVol();
   let rec = null, recT = null;
   function fade(el, to, secs) { el._f = { from: el.volume, to, t0: performance.now(), d: Math.max(1, secs * 1000) }; }
   function recTick() {
@@ -161,7 +174,7 @@
     const a = rec.els[rec.i], b = rec.els[1 - rec.i];
     if (a.paused && !a._f && rec.on) a.play().catch(() => {});
     if (a.duration && a.currentTime > a.duration - XF && !b._f && b.paused) {
-      b.currentTime = 0; b.volume = 0; b.play().catch(() => {}); fade(b, REC_VOL, XF); fade(a, 0, XF); rec.i = 1 - rec.i;
+      b.currentTime = 0; b.volume = 0; b.play().catch(() => {}); fade(b, recVol(), XF); fade(a, 0, XF); rec.i = 1 - rec.i;
     }
   }
   function playRec(id, src) {
@@ -170,7 +183,7 @@
     old.forEach((el) => fade(el, 0, 1.5));
     const mk = () => { const el = new Audio(src); el.preload = "auto"; el.volume = 0; return el; };
     rec = { id, els: [mk(), mk()], i: 0, on: true, old };
-    rec.els[0].play().catch(() => {}); fade(rec.els[0], REC_VOL, 2.5);
+    rec.els[0].play().catch(() => {}); fade(rec.els[0], recVol(), 2.5);
     if (!recT) recT = setInterval(recTick, 80);
   }
   function stopRec() { if (!rec) return; rec.els.forEach((el) => fade(el, 0, 0.8)); rec.on = false; const r = rec; setTimeout(() => { if (rec === r && !r.on) { r.els.forEach((el) => el.pause()); rec = null; } }, 1200); }
@@ -191,7 +204,7 @@
       const bus = ctx.createGain(), dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
       dl.delayTime.value = 0.38; fb.gain.value = 0.35; wet.gain.value = 0.35;
       bus.connect(master); bus.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(master);
-      bus.gain.value = 0.55;
+      bus.gain.value = 1.1 * A.musicVol();
       mus = { bus, th: null, id: null, next: ctx.currentTime + 0.2, beat: 0, walk: 7, chord: 0, tense: false, pad: null };
       musT = setInterval(schedule, 120);
     }
