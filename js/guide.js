@@ -111,7 +111,9 @@
   G.startGuide = function (id, replay) {
     const g = G.GUIDES.find((x) => x.id === id); if (!g) return;
     if (cur) endGuide(true);
-    U().closeModal();
+    // Start from a clean screen: open panels would sit under the spotlight on phones.
+    // Steps that need a panel open it themselves.
+    U().closeModal(); U().closeSummon(); U().close();
     cur = { g, i: -1, replay: !!replay, pausedHere: false };
     if (!G.paused) { G.paused = "guide"; cur.pausedHere = true; }
     next();

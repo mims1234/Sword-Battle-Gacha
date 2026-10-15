@@ -116,9 +116,43 @@
       mus.next += spb; mus.beat++;
     }
   }
+  // ---------- recorded music (assets/music, made by tools/make-music.mjs) ----------
+  // Two <audio> players take turns: a few seconds before one ends, the other starts from the top
+  // and they cross-fade, so the loop never clicks or gaps. Works from file:// too.
+  const XF = 2.5, REC_VOL = 0.5;
+  let rec = null, recT = null;
+  function fade(el, to, secs) { el._f = { from: el.volume, to, t0: performance.now(), d: Math.max(1, secs * 1000) }; }
+  function recTick() {
+    const now = performance.now(), all = rec ? rec.els.concat(rec.old || []) : [];
+    all.forEach((el) => { const f = el._f; if (!f) return; const k = Math.min(1, (now - f.t0) / f.d); el.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * k)); if (k >= 1) { el._f = null; if (f.to === 0) el.pause(); } });
+    if (rec && rec.old && rec.old.every((el) => el.paused)) rec.old = null;
+    if (!rec) return;
+    const a = rec.els[rec.i], b = rec.els[1 - rec.i];
+    if (a.paused && !a._f && rec.on) a.play().catch(() => {});
+    if (a.duration && a.currentTime > a.duration - XF && !b._f && b.paused) {
+      b.currentTime = 0; b.volume = 0; b.play().catch(() => {}); fade(b, REC_VOL, XF); fade(a, 0, XF); rec.i = 1 - rec.i;
+    }
+  }
+  function playRec(id, src) {
+    if (rec && rec.id === id) { rec.on = true; return; }
+    const old = rec ? rec.els : [];
+    old.forEach((el) => fade(el, 0, 1.5));
+    const mk = () => { const el = new Audio(src); el.preload = "auto"; el.volume = 0; return el; };
+    rec = { id, els: [mk(), mk()], i: 0, on: true, old };
+    rec.els[0].play().catch(() => {}); fade(rec.els[0], REC_VOL, 2.5);
+    if (!recT) recT = setInterval(recTick, 80);
+  }
+  function stopRec() { if (!rec) return; rec.els.forEach((el) => fade(el, 0, 0.8)); rec.on = false; const r = rec; setTimeout(() => { if (rec === r && !r.on) { r.els.forEach((el) => el.pause()); rec = null; } }, 1200); }
+  function stopSynth() { if (!mus) return; killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; }
+
   // Called about once a second: start, switch or stop the music to match the current area.
   A.music = function () {
     const want = G.s.set.sound && G.s.set.music !== false && ctx && ctx.state === "running";
+    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat;
+    const area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id, tense0 = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
+    const recId = tense0 && tracks.boss ? "boss" : tracks[area] ? area : null;
+    if (want && recId) { stopSynth(); playRec(recId, tracks[recId]); return; }
+    stopRec();
     if (!want) { if (mus) { killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; } return; }
     const f = G.curFloor(), id = G.rift ? "demon" : G.biomeOf(f).id, th = THEMES[id], C = G.combat;
     const tense = !!((C && C.boss) || G.s.moon > 0 || (C && C.hollow) || G.rift);
