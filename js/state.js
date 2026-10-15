@@ -1,7 +1,7 @@
 // ===================== STATE, SAVE, DERIVED STATS =====================
 (function () {
   const G = window.G;
-  G.VERSION = "4.3";
+  G.VERSION = "4.4";
   G.SAVE_KEY = "idle_blade_master_v4";
   G.V3_KEY = "idle_blade_master_v3";
   G.SW = window.SWORDS_DATA || [];

@@ -147,7 +147,7 @@
 
   // Called about once a second: start, switch or stop the music to match the current area.
   A.music = function () {
-    const want = G.s.set.sound && G.s.set.music !== false && ctx && ctx.state === "running";
+    const want = G.s.set.music !== false && ctx && ctx.state === "running";
     const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat;
     const area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id, tense0 = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
     const recId = tense0 && tracks.boss ? "boss" : tracks[area] ? area : null;

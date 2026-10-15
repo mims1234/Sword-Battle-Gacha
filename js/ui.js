@@ -303,7 +303,7 @@
 
   function pSettings() {
     const s = G.s, t = (k, label, hint) => `<div class="claimrow"><span><b>${label}</b><small>${hint}</small></span><button class="btn${s.set[k] ? " gold" : ""}" data-act="set" data-k="${k}">${s.set[k] ? "On" : "Off"}</button></div>`;
-    return t("sound", "Sound", "All game sounds. Also on the ♪ button in the arena") + t("music", "Music", "Calm background music that changes with each area") + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
+    return t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
       `<h3>Stats</h3><div class="log"><p>Best floor ${s.best} · ${G.fmt(s.kills)} monsters defeated · ${s.pulls} summons</p><p>${s.rebirths} rebirths · ${s.stat.wipes} defeats · ${s.secrets} secrets found</p><p>${G.fmt(s.stat.dmg)} total damage · ${G.fmtTime(s.stat.online)} played</p></div>
       <h3>Save</h3><div class="rowbtns"><button class="btn" data-act="export">Copy save code</button><button class="btn" data-act="importAsk">Load save code</button><button class="btn danger" data-act="resetAsk">Delete save</button></div>
       <p class="hint">Idle Blade Master ${G.VERSION}. Keyboard: 1–5 cast ultimates, Space pauses, L levels up, S opens Summon.</p>`;
@@ -380,7 +380,7 @@
     $("forgeDot").hidden = s.sigils < 1;
     $("journalDot").hidden = !(s.omen.sealed > 0 || (G.unlocked("bounty") && s.bounty && s.bounty.list.some((x) => x.n >= x.goal && !x.done)) || G.FEATS.some((x) => !s.feats[x.id] && x.get(s) >= x.goal));
     $("coach").hidden = true; // replaced by the guides
-    const mb = $("muteBtn"); if (mb) { setText("muteBtn", s.set.sound ? "♪" : "✕"); mb.classList.toggle("off", !s.set.sound); }
+    $("musicBtn").classList.toggle("off", s.set.music === false); $("sfxBtn").classList.toggle("off", !s.set.sound);
     G.guideTick();
   }
 
@@ -462,7 +462,8 @@
     guide: (d) => { U.close(); G.startGuide(d.id, true); },
     help: (d) => G.startGuide(G.helpFor(d.p || open), true),
     guideNext: () => G.guideNext(), guideSkip: () => G.guideSkip(), noop: () => {},
-    mute() { G.s.set.sound = !G.s.set.sound; G.audio.unlock(); G.audio.music(); dirty.settings = 1; U.toast(G.s.set.sound ? "Sound on" : "Sound off", "#a8977d"); },
+    muteMusic() { G.s.set.music = G.s.set.music === false; G.audio.unlock(); G.audio.music(); dirty.settings = 1; U.toast(G.s.set.music ? "Music on" : "Music off", "#a8977d"); },
+    muteSfx() { G.s.set.sound = !G.s.set.sound; G.audio.unlock(); dirty.settings = 1; U.toast(G.s.set.sound ? "Sound effects on" : "Sound effects off", "#a8977d"); },
     inspect(d) { U.inspect(+d.u, d.m); },
     equip(d) { if (G.equip(+d.u, +d.i)) { afterPower(); U.closeModal(); G.audio.play("click"); } },
     autofill() { G.autoParty(); G.refreshBlades(); afterPower(); U.toast("Best blades added. Tanks go in front.", "#c9a24b"); },
@@ -509,7 +510,7 @@
     sendExp(d) { const s = G.s, u = s.blades.filter((b) => !G.inParty(b.u) && !G.onExpedition(b.u)).sort((a, z) => G.TIER[z.t].rank - G.TIER[a.t].rank || z.s - a.s).slice(0, 3).map((b) => b.u); if (G.sendExp(u, +d.h)) { dirty.exp = 1; dirty.warband = 1; } },
     claimExp(d) { const r = G.claimExp(+d.i); if (r) { U.toast(`Mission done: +${G.fmt(r.souls)} gold, +${r.sig} gems${r.rune ? ", " + G.runeName(r.rune) : ""}`, "#c9a24b"); dirty.exp = 1; dirty.warband = 1; G.audio.play("drop"); } },
     startRift() { if (G.startRift()) U.close(); },
-    set(d) { G.s.set[d.k] = !G.s.set[d.k]; dirty.settings = 1; if (d.k === "sound") G.audio.unlock(); },
+    set(d) { G.s.set[d.k] = !G.s.set[d.k]; dirty.settings = 1; if (d.k === "sound" || d.k === "music") { G.audio.unlock(); G.audio.music(); } },
     export() { const code = G.exportSave(); U.modal(`<h2>Save code</h2><p class="hint">Keep this somewhere safe to move your progress to another device.</p><textarea class="code" id="saveCode" readonly>${esc(code)}</textarea><div class="rowbtns center"><button class="btn gold" data-act="copyCode">Copy</button><button class="btn" data-act="modalClose">Close</button></div>`); },
     copyCode() { const t = $("saveCode"); t.select(); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(() => U.toast("Copied.", "#c9a24b")).catch(() => { try { document.execCommand("copy"); U.toast("Copied.", "#c9a24b"); } catch (e) { U.toast("Select the text and copy it by hand.", "#a39279"); } }); },
     importAsk() { U.modal(`<h2>Load a save code</h2><p class="hint">This replaces your current progress.</p><textarea class="code" id="loadCode" placeholder="Paste the code here"></textarea><div class="rowbtns center"><button class="btn gold" data-act="importDo">Load</button><button class="btn" data-act="modalClose">Cancel</button></div>`); },
