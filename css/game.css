@@ -329,3 +329,14 @@ body.wide .band { gap: 10px; padding-top: 10px; }
 }
 @media (max-width: 380px) { .cur { gap: 4px; font-size: 13px; } .cur > * { padding: 2px 5px 2px 4px; } .floor > span:nth-child(2) { display: none; } .ctl .btn { font-size: 13px; padding-inline: 6px; } }
 @media (prefers-reduced-motion: reduce) { .altar .ring, .altar .gemfloat, .sm-stage .rays, .boot-mark, .slot.ready, .door .arch, .coach, .btn.summon.glow, .tabs em { animation: none; } }
+
+/* drag ghost (touch) and the tutorial's drag demo */
+.dragghost, .gdrag { position: fixed; z-index: 40; width: 54px; height: 54px; padding: 8px; pointer-events: none; transform: translate(-50%, -50%) scale(1.15); background: radial-gradient(circle, color-mix(in srgb, var(--tc) 30%, #0d0909), #0b0707 80%); box-shadow: inset 0 0 0 2px var(--tc), 0 6px 14px rgba(0,0,0,.6); }
+.dragghost .sw, .gdrag .sw { width: 100%; }
+.dragghost .stars, .gdrag .stars { display: none; }
+.gdrag { position: absolute; left: var(--x0); top: var(--y0); animation: gdrag 2.4s ease-in-out infinite; }
+.gdrag .hand { position: absolute; right: -14px; bottom: -18px; font-size: 26px; text-shadow: 2px 2px 0 #000; filter: drop-shadow(0 0 4px #fff3d6); }
+@keyframes gdrag { 0%, 12% { left: var(--x0); top: var(--y0); opacity: 0; } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 28% { transform: translate(-50%, -50%) scale(1.2); left: var(--x0); top: var(--y0); } 75% { left: var(--x1); top: var(--y1); opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 85% { left: var(--x1); top: var(--y1); transform: translate(-50%, -50%) scale(.9); opacity: 1; } 100% { left: var(--x1); top: var(--y1); opacity: 0; } }
+.dropover { box-shadow: inset 0 0 0 3px #fff3d6, 0 0 16px #f2c14e !important; }
+.tile { -webkit-touch-callout: none; touch-action: pan-y; }
+@media (prefers-reduced-motion: reduce) { .gdrag { animation-duration: 4s; } }

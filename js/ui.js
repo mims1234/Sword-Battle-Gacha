@@ -547,6 +547,35 @@
       const fn = A[t.dataset.act]; if (fn) { fn(t.dataset, t); if (t.classList.contains("btn") && !["lvl", "lvlAll"].includes(t.dataset.act)) G.audio.play("click"); }
     });
     $("modal").addEventListener("click", (e) => { if (e.target === $("modal") && !G.paused) U.closeModal(); });
+    // Touch screens have no drag-and-drop: press and hold a blade, then drag it onto a slot.
+    let drag = null, suppressClick = 0;
+    const endDrag = () => { if (!drag) return; clearTimeout(drag.timer); if (drag.ghost) drag.ghost.remove(); document.querySelectorAll(".dropover").forEach((n) => n.classList.remove("dropover")); drag = null; };
+    const dropAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest("[data-drop]"); };
+    document.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") return;
+      const t = e.target.closest && e.target.closest(".tile"); if (!t) return;
+      drag = { u: +t.dataset.u, x: e.clientX, y: e.clientY, on: false };
+      drag.timer = setTimeout(() => {
+        if (!drag) return;
+        drag.on = true; const g = document.createElement("div"); g.className = "dragghost"; g.innerHTML = t.innerHTML; g.style.setProperty("--tc", t.style.getPropertyValue("--tc"));
+        g.style.left = drag.x + "px"; g.style.top = drag.y + "px"; document.body.appendChild(g); drag.ghost = g;
+        G.audio.buzz(15); G.audio.play("click");
+      }, 260);
+    });
+    document.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      if (!drag.on) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 10) endDrag(); return; } // it was a scroll
+      drag.ghost.style.left = e.clientX + "px"; drag.ghost.style.top = e.clientY + "px";
+      const d = dropAt(e.clientX, e.clientY); document.querySelectorAll(".dropover").forEach((n) => n !== d && n.classList.remove("dropover")); if (d) d.classList.add("dropover");
+    });
+    document.addEventListener("touchmove", (e) => { if (drag && drag.on) e.preventDefault(); }, { passive: false });
+    document.addEventListener("pointerup", (e) => {
+      if (!drag) return;
+      if (drag.on) { suppressClick = Date.now(); const d = dropAt(e.clientX, e.clientY); if (d && G.equip(drag.u, +d.dataset.drop)) { afterPower(); G.audio.play("click"); U.toast(`${G.SW[G.blade(drag.u).i].name} joins the team`, "#f2c14e"); } }
+      endDrag();
+    });
+    document.addEventListener("pointercancel", endDrag);
+    document.addEventListener("click", (e) => { if (Date.now() - suppressClick < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
     document.addEventListener("dragstart", (e) => { const t = e.target.closest && e.target.closest(".tile"); if (t) e.dataTransfer.setData("text/plain", t.dataset.u); });
     document.addEventListener("dragover", (e) => { if (e.target.closest && e.target.closest("[data-drop]")) e.preventDefault(); });
     document.addEventListener("drop", (e) => { const t = e.target.closest && e.target.closest("[data-drop]"); if (!t) return; e.preventDefault(); const u = +e.dataTransfer.getData("text/plain"); if (u && G.equip(u, +t.dataset.drop)) afterPower(); });

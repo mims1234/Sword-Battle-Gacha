@@ -10,7 +10,7 @@
     try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination); } catch (e) { ctx = null; }
     return !!ctx;
   }
-  A.unlock = function () { if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music()); else A.music(); };
+  A.unlock = function () { if (!A._pre) { A._pre = 1; A.preloadSfx(); } if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music()); else A.music(); };
 
   function tone(freq, dur, type, vol, slide, delay) {
     const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
@@ -45,9 +45,39 @@
     reveal(rank) { const base = [392, 440, 523, 659, 784][rank] || 392; for (let i = 0; i <= rank; i++) tone(base * Math.pow(1.26, i), 0.35, "triangle", 0.16, 0, i * 0.08); if (rank >= 3) noise(0.5, 0.2, 5000); },
   };
 
+  // ---------- recorded sound effects (assets/sfx, made by tools/make-music.mjs) ----------
+  // Each file gets a small pool of <audio> players so quick repeats can overlap; hits get a
+  // slightly random pitch so a long fight never sounds like one sample on repeat.
+  const SFX_MAP = { hit: "hit", crit: "hit", kill: "kill", boss: "boss", bossDown: "boss_down", ult: "ult", drop: "drop", level: "level", click: "click", wipe: "wipe", omen: "omen", secret: "secret", charge: "summon_charge", rebirth: "rebirth", unlock: "unlock" };
+  const SFX_VOL = { hit: 0.3, crit: 0.5, kill: 0.35, click: 0.25, drop: 0.45, level: 0.45, ult: 0.5 };
+  const pools = {};
+  function playerFor(src) {
+    const pool = pools[src] || (pools[src] = []);
+    let el = pool.find((a) => a.paused || a.ended);
+    if (!el) { if (pool.length >= 6) el = pool[0]; else { el = new Audio(src); el.preload = "auto"; pool.push(el); } }
+    return el;
+  }
+  function sample(id, rate, vol) {
+    const files = (window.SFX_FILES || {})[id]; if (!files || !files.length) return false;
+    const el = playerFor(files[Math.floor(Math.random() * files.length)]);
+    try { el.currentTime = 0; } catch (e) { /* not loaded yet */ }
+    el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = false;
+    el.playbackRate = rate; el.volume = Math.min(1, vol);
+    el.play().catch(() => {});
+    return true;
+  }
+  A.preloadSfx = function () { const f = window.SFX_FILES || {}; Object.keys(f).forEach((id) => f[id].forEach((src) => { if (!pools[src]) playerFor(src); })); };
+
   A.play = function (name, arg) {
-    if (!G.s.set.sound || !ensure() || ctx.state !== "running") return;
+    if (!G.s.set.sound) return;
     if (name === "hit" || name === "crit") { const n = performance.now(); if (n - lastHit < 70) return; lastHit = n; }
+    const rec = name === "reveal" ? (arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1") : SFX_MAP[name];
+    const rate = name === "hit" ? 0.9 + Math.random() * 0.2 : name === "crit" ? 0.82 : name === "kill" ? 0.92 + Math.random() * 0.16 : 1;
+    if (rec && sample(rec, rate, SFX_VOL[name] == null ? 0.6 : SFX_VOL[name])) return;
+    return synth(name, arg);
+  };
+  function synth(name, arg) {
+    if (!ensure() || ctx.state !== "running") return;
     try { S[name] && S[name](arg); } catch (e) { /* ignore audio errors */ }
   };
 
@@ -61,6 +91,7 @@
       case "wipe": A.play("wipe"); break;
       case "omen": case "champion": A.play("omen"); break;
       case "rebirth": A.play("rebirth"); break;
+      case "unlock": A.play("unlock"); break;
     }
   };
   // ---------- area music: slow, calm, a little tense ----------

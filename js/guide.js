@@ -16,7 +16,7 @@
         { title: "Open Summon", text: "You have 10 gems. Tap Summon.", target: "#sumBtn", wait: () => !$("#summon").hidden },
         { title: "Summon 10 blades", text: "Tap Summon 10. Each blade is random and every one is different.", target: '[data-act="summon"][data-n="10"]', wait: () => G.s.pulls > 0 && U().pull && U().pull.phase === "show" && Date.now() > (U().pull.lockUntil || 0) },
         { title: "Your new blades", text: "The colour shows how rare a blade is: grey Common, blue Rare, purple Epic, orange Legendary, red Mythic. Tap any blade later to see its stats.", target: ".pulls" },
-        { title: "Pick your team", text: "Now choose who fights. Tap blades to add them to your team. Pick 3.", before: () => { U().closeSummon(); U().open("warband"); }, target: "#left .tiles, #sheet .tiles", wait: () => teamSize() >= Math.min(3, G.slotCount(), G.s.blades.length) },
+        { title: "Pick your team", text: "Now choose who fights. Drag a blade onto a slot, or just tap it to add it. On phones, press and hold a blade before dragging. Pick 3.", demo: { from: "#left .tiles .tile:not(.inparty), #sheet .tiles .tile:not(.inparty)", to: "#left .fslot[data-drop], #sheet .fslot[data-drop]" }, before: () => { U().closeSummon(); U().open("warband"); }, target: "#left .tiles, #sheet .tiles", wait: () => teamSize() >= Math.min(3, G.slotCount(), G.s.blades.length) },
         { title: "Front and back", text: "Slots 1 and 2 are the front row and get hit first. Put Tanks (lots of health) in front and Attackers behind. Auto team does this for you.", target: "#left .formation, #sheet .formation" },
         { title: "Fight!", text: "Your team now fights on its own. Every monster drops gold.", before: () => U().close(), target: "#stageWrap" },
         { title: "Level up", text: "Spend gold here to make your team stronger. If you lose a fight, your team trains one floor back and you can try again.", target: "#lvlAll" },
@@ -35,7 +35,7 @@
     {
       id: "team", name: "Your team", icon: "⛨", col: "#f2c14e", floor: 1, auto: () => false,
       steps: [
-        { title: "Team", text: "Tap a slot, then tap a blade to put it there. Arrows on blades show if they are better (▲) or worse (▼) than the one in that slot.", before: () => U().open("warband"), target: "#left .formation, #sheet .formation" },
+        { title: "Moving blades", text: "Drag a blade onto any slot to swap it in (on phones, press and hold first). Or tap a slot, then tap a blade. Arrows show if a blade is better (▲) or worse (▼) than the one in that slot.", demo: { from: "#left .tiles .tile:not(.inparty), #sheet .tiles .tile:not(.inparty)", to: "#left .fslot[data-drop], #sheet .fslot[data-drop]" }, before: () => U().open("warband"), target: "#left .formation, #sheet .formation" },
         { title: "Element bonus", text: "Two blades of the same element give +10% damage. Three give a special power, like burning or freezing monsters.", target: "#left .res, #sheet .res" },
         { title: "Tidy up", text: "Merge duplicates to add ★ ranks, and sell spare Common blades for gold.", target: "#left .rowbtns, #sheet .rowbtns" },
       ],
@@ -133,7 +133,7 @@
     // Steps that wait for the player leave the game running so the action can happen.
     if (st.wait && !cur.replay && G.paused === "guide" && cur.pausedHere) { G.paused = null; cur.pausedHere = false; }
     if ((!st.wait || cur.replay) && !G.paused) { G.paused = "guide"; cur.pausedHere = true; }
-    cur.shownAt = performance.now();
+    cur.shownAt = performance.now(); cur.demoScrolled = false;
     render(true);
   }
   // Scroll only the panel that holds the target (scrollIntoView would also shift the whole page).
@@ -162,6 +162,25 @@
     if (fresh) cur.revealed = false;
     if (t && !cur.revealed) { cur.revealed = true; reveal(t); } // panels render a moment later, so wait for the target
     place(root, t);
+    demo(root, st);
+  }
+  function demo(root, st) {
+    let d = root.querySelector(".gdrag");
+    const from = st.demo && findTarget(st.demo.from), to = st.demo && findTarget(st.demo.to);
+    if (!from || !to) { if (d) d.remove(); return; }
+    const app = document.getElementById("app").getBoundingClientRect();
+    // On short screens the bench may start below the fold: scroll just enough to show its first row.
+    if (!cur.demoScrolled) {
+      cur.demoScrolled = true;
+      for (let p = from.parentElement; p && p !== document.body; p = p.parentElement) {
+        const oy = getComputedStyle(p).overflowY;
+        if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight) { const pr = p.getBoundingClientRect(), fr = from.getBoundingClientRect(); if (fr.bottom > pr.bottom - 8) p.scrollTop += fr.bottom - pr.bottom + 12; break; }
+      }
+    }
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+    if (!d) { d = document.createElement("div"); d.className = "gdrag"; d.innerHTML = from.innerHTML + '<span class="hand">☝</span>'; d.style.setProperty("--tc", from.style.getPropertyValue("--tc")); root.appendChild(d); }
+    d.style.setProperty("--x0", a.left - app.left + a.width / 2 + "px"); d.style.setProperty("--y0", a.top - app.top + a.height / 2 + "px");
+    d.style.setProperty("--x1", b.left - app.left + b.width / 2 + "px"); d.style.setProperty("--y1", b.top - app.top + b.height / 2 + "px");
   }
   function place(root, t) {
     const spot = root.querySelector(".gspot"), card = root.querySelector(".gcard"), app = document.getElementById("app").getBoundingClientRect();
