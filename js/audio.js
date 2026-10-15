@@ -4,8 +4,8 @@
   let ctx = null, master = null, sfxBus = null, lastHit = 0;
   // Player volumes (0-1). By default music sits about 40% louder than effects:
   // music carries the mood, effects only signal that something happened.
-  A.musicVol = () => (G.s.set.musicVol == null ? 0.8 : G.s.set.musicVol);
-  A.sfxVol = () => (G.s.set.sfxVol == null ? 0.55 : G.s.set.sfxVol);
+  A.musicVol = () => (G.s.set.musicVol == null ? 0.9 : G.s.set.musicVol);
+  A.sfxVol = () => (G.s.set.sfxVol == null ? 0.3 : G.s.set.sfxVol);
   A.applyVolumes = function () {
     if (sfxBus) sfxBus.gain.setTargetAtTime(A.sfxVol(), ctx.currentTime, 0.05);
     if (mus) mus.bus.gain.setTargetAtTime(1.1 * A.musicVol(), ctx.currentTime, 0.05);
