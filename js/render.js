@@ -19,6 +19,9 @@
   G.moCss = (i) => { const p = G.moCell(i); return `background-position:${(p[3] / 11) * 100}% ${(p[2] / 12) * 100}%`; };
 
   const rnd = G.rand, rd = Math.round;
+  // Monsters stand to the right of the blades, so they should face left. The sheet draws almost
+  // all of them facing left already; these are the ones drawn facing right and must be mirrored.
+  const FACES_RIGHT = new Set([28]);
   const calm = () => G.s.set.calm;
 
   // ---------- colour helpers ----------
@@ -293,7 +296,7 @@
         const n = C.enemies.length, bossWave = C.boss && C.wave === C.waves;
         C.enemies.forEach((en, j) => {
           const big = en.kind === "boss" || en.kind === "hollow", p = epos(j, n, big, bossWave && !big);
-          ev.set(en.id, { id: en.id, mi: en.mi, kind: en.kind, sw: en.sw, trait: en.trait, j, n, big, bossWave: bossWave && !big, x: W + 20 + j * 12, tx: p[0], y: p[1], s: big ? 2 : 1, hit: 0, dying: 0, hp: 1, bump: 0, age: 0, flip: Math.random() < 0.5 });
+          ev.set(en.id, { id: en.id, mi: en.mi, kind: en.kind, sw: en.sw, trait: en.trait, j, n, big, bossWave: bossWave && !big, x: W + 20 + j * 12, tx: p[0], y: p[1], s: big ? 2 : 1, hit: 0, dying: 0, hp: 1, bump: 0, age: 0, flip: FACES_RIGHT.has(en.mi) });
         });
         if (e.boss) { R.banner(C.enemies[0].name.toUpperCase(), "#ff5a4a", "Guardian of " + R.areaName()); if (!calm()) shake = 3; }
         break;
@@ -468,12 +471,12 @@
         const bl = e.bl, pp = G.party[e.i]; if (!pp) return;
         const col = G.EL[pp.st.el].color, casting = bl.cast > 0, idx = pp.b.i, qx = (idx % 6) * 32, qy = Math.floor(idx / 6) * 32;
         shadow(bl.bx, bl.by + 15, 14);
-        if (bl.dead) { sprite(tinted(imgS, qx, qy, "#000", 0.65), 0, 0, bl.bx, bl.by + 6, 1, 0.8); return; }
+        if (bl.dead) { sprite(tinted(imgS, qx, qy, "#000", 0.65), 0, 0, bl.bx, bl.by + 6, 1, 0.8, true); return; }
         const ready = G.rage[e.i] >= 100;
         c.globalCompositeOperation = "lighter"; glow(bl.x, bl.y, casting ? 30 : ready ? 20 + Math.sin(T * 8) * 3 : 15, col, casting ? 0.7 : ready ? 0.55 : 0.28 + bl.go * 0.25); if (pp.b.t === "mythic") glow(bl.x, bl.y, 22, "#ff4558", 0.25 + Math.sin(T * 3 + e.i) * 0.08); c.globalCompositeOperation = "source-over";
-        if (bl.go > 0.1) { sprite(imgS, qx, qy, bl.x - (bl.x - bl.bx) * 0.25, bl.y, 1, 0.25); }
+        if (bl.go > 0.1) { sprite(imgS, qx, qy, bl.x - (bl.x - bl.bx) * 0.25, bl.y, 1, 0.25, true); }
         const hit = bl.hitT > 0.5;
-        sprite(hit ? tinted(imgS, qx, qy, "#ff5a4a", 0.7) : imgS, hit ? 0 : qx, hit ? 0 : qy, bl.x + (hit ? rd(rnd(-1, 1)) : 0), bl.y - (casting ? 4 : 0), 1, 1);
+        sprite(hit ? tinted(imgS, qx, qy, "#ff5a4a", 0.7) : imgS, hit ? 0 : qx, hit ? 0 : qy, bl.x + (hit ? rd(rnd(-1, 1)) : 0), bl.y - (casting ? 4 : 0), 1, 1, true); // the sheet draws blades pointing up-left; mirror so they point at the monsters
         if (pp.b.s > 0 && Math.sin(T * 2 + e.i * 2) > 0.8) { c.fillStyle = "#fff"; c.fillRect(rd(bl.x + rnd(-8, 8)), rd(bl.y + rnd(-10, 10)), 1, 1); }
         if (bl.hp < 0.999) { c.fillStyle = "#000"; c.fillRect(bl.bx - 9, bl.by + 18, 18, 3); c.fillStyle = bl.hp > 0.35 ? "#5fd08a" : "#e0503a"; c.fillRect(bl.bx - 8, bl.by + 19, Math.max(0, rd(16 * bl.hp)), 1); }
         if (ready && !casting) { c.fillStyle = Math.sin(T * 10) > 0 ? "#ffe14a" : "#ff8a2a"; c.fillRect(bl.bx - 1, bl.by - 22, 2, 4); c.fillRect(bl.bx - 1, bl.by - 16, 2, 1); }
@@ -485,7 +488,7 @@
         if (v.kind === "hollow") {
           const i = v.sw, qx = (i % 6) * 32, qy = Math.floor(i / 6) * 32;
           c.globalCompositeOperation = "lighter"; glow(x, y, 40, "#8fa3c8", 0.35); c.globalCompositeOperation = "source-over";
-          sprite(tinted(imgS, qx, qy, v.hit > 0.45 ? "#fff" : "#05070c", v.hit > 0.45 ? 1 : 0.75), 0, 0, x, y, 2, a, true);
+          sprite(tinted(imgS, qx, qy, v.hit > 0.45 ? "#fff" : "#05070c", v.hit > 0.45 ? 1 : 0.75), 0, 0, x, y, 2, a, false); // drawn pointing up-left already, i.e. at the player's blades
         } else {
           const cell = G.moCell(v.mi); let src = imgM, qx = cell[0], qy = cell[1];
           if (v.dying) { src = tinted(imgM, qx, qy, v.el === "ice" ? "#bff3ff" : v.el === "void" ? "#3a1060" : "#ff8a3a", 1); qx = qy = 0; }
@@ -493,7 +496,7 @@
           else if (v.frz) { src = tinted(imgM, qx, qy, "#7fdcff", 0.6); qx = qy = 0; }
           else if (v.kind === "gild" || v.kind === "imp") { src = tinted(imgM, qx, qy, "#ffc830", 0.55); qx = qy = 0; }
           else if (v.kind === "champ") { src = tinted(imgM, qx, qy, "#ff7a20", 0.25); qx = qy = 0; }
-          sprite(src, qx, qy, x, y, S2, a, v.flip);
+          sprite(src, qx, qy, x, y, S2, a, v.kind === "imp" && !v.dying ? Math.cos(v.age * 3.2) > 0 : v.flip);
         }
         if (!v.dying && !v.big) {
           if (v.hp < 0.999) { c.fillStyle = "#000"; c.fillRect(rd(v.x - 10), rd(v.y - h - 4), 20, 3); c.fillStyle = "#d0342a"; c.fillRect(rd(v.x - 9), rd(v.y - h - 3), Math.max(0, rd(18 * v.hp)), 1); }
