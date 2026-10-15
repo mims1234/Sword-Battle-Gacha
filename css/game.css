@@ -71,7 +71,6 @@ small { font-size: 12.5px; color: var(--dim); }
 .center { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 .stagewrap { position: relative; flex: 0 0 auto; height: clamp(190px, 64vw, 46dvh); background: #000; overflow: hidden; border-bottom: 3px solid #000; transition: height .2s; }
 #stage { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; touch-action: manipulation; }
-.center.sheetopen .stagewrap { height: clamp(150px, 30dvh, 46vw); }
 .lower { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #120c0b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='16'%3E%3Cpath d='M0 0h32v1H0zM0 8h32v1H0zM8 1v7h1V1zM24 9v7h1V9z' fill='%23000' fill-opacity='.35'/%3E%3C/svg%3E"); }
 
 .bossbar { position: absolute; left: 12%; right: 12%; top: 8px; text-align: center; pointer-events: none; }
