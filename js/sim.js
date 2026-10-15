@@ -153,9 +153,9 @@
     const bench = s.blades.some((b) => !G.inParty(b.u) && counters.indexOf(G.SW[b.i].element) >= 0);
     if (counters.length && !has && bench) return { k: "swap", text: `${G.FAMLABEL[fam]} are weak to ${counters.map((c) => G.EL[c].label).join(" and ")}. You have one on the bench.` };
     const cheapest = Math.min.apply(null, G.party.map((p, i) => (p ? G.slotCost(s.lv[i]) : Infinity)));
-    if (s.souls >= cheapest) return { k: "level", text: "You have unspent souls. Raise your slot levels." };
-    if (s.sigils >= 1) return { k: "summon", text: "You have sigils. Summon at the Soulforge." };
-    if (G.unlocked("rebirth") && (s.wallHits || 0) >= 2 && G.emberGain(s.runBest) > 0) return { k: "rebirth", text: `This wall is holding. Rebirth now for ${G.emberGain(s.runBest)} Embers.` };
+    if (s.souls >= cheapest) return { k: "level", text: "You have gold to spend. Level up your team." };
+    if (s.sigils >= 1) return { k: "summon", text: "You have gems. Summon new blades." };
+    if (G.unlocked("rebirth") && (s.wallHits || 0) >= 2 && G.emberGain(s.runBest) > 0) return { k: "rebirth", text: `You keep hitting this floor. Rebirth now for ${G.emberGain(s.runBest)} Essence.` };
     return { k: "farm", text: "Farming one floor back. Souls will carry you through." };
   };
   G.pushOn = function () { G.s.hold = false; };
@@ -193,10 +193,10 @@
       souls = G.soulBase(f) * hm(e.mi) * G.mod.souls * pm("souls", 1) * (s.moon > 0 ? 2 : 1) * (s.curse > 0 ? 2 : 1) * mul;
       s.souls += souls; s.kills++;
       if (e.kind !== "imp" && e.kind !== "hollow") { s.mk[e.mi] = (s.mk[e.mi] || 0) + 1; G.track("kills", 1, e.cat); }
-      if (e.kind === "gild") { s.gild[e.mi] = 1; s.sigils += 1; emit("drop", { kind: "sigil", n: 1, eid: e.id }); G.log("Gilded " + G.MON[e.mi].type + " slain: +1 sigil", "#ffd24a"); }
-      if (e.kind === "imp") { const n = e.life > 5 ? 3 : e.life > 2 ? 2 : 1; s.sigils += n; s.stat.imps++; emit("drop", { kind: "sigil", n, eid: e.id }); G.log(`Treasure imp caught: +${n} sigils`, "#ffd24a"); }
+      if (e.kind === "gild") { s.gild[e.mi] = 1; s.sigils += 1; emit("drop", { kind: "sigil", n: 1, eid: e.id }); G.log("Gilded " + G.MON[e.mi].type + " slain: +1 gem", "#ffd24a"); }
+      if (e.kind === "imp") { const n = e.life > 5 ? 3 : e.life > 2 ? 2 : 1; s.sigils += n; s.stat.imps++; emit("drop", { kind: "sigil", n, eid: e.id }); G.log(`Treasure imp caught: +${n} gems`, "#ffd24a"); }
       if (e.kind === "champ") { if (G.unlocked("runes")) G.dropRune(e.id); else { s.sigils += 1; emit("drop", { kind: "sigil", n: 1, eid: e.id }); } }
-      if (e.kind === "hollow") { s.boon = true; emit("hollowWin"); G.log("The Hollow Blade falls. Your next summon is Forge tier or better.", "#ffab2e"); }
+      if (e.kind === "hollow") { s.boon = true; emit("hollowWin"); G.log("The Hollow Blade falls. Your next summon is Legendary or better.", "#ffab2e"); }
     }
     if (G.res.traits.holy) { const low = C.blades.filter((b) => b && !b.dead).sort((a, b) => a.hp / a.max - b.hp / b.max)[0]; if (low) low.hp = Math.min(low.max, low.hp + low.max * 0.04); }
     emit("kill", { eid: e.id, el: h.el, souls, kind: e.kind });
@@ -356,7 +356,7 @@
     G.rage = [0, 0, 0, 0, 0]; G.rift = null; G.paused = null;
     G.recalc(); G.startFloor(1.5);
     emit("rebirth", { gain });
-    G.log(`Rebirth: +${gain} Embers`, "#ff8a2a");
+    G.log(`Rebirth: +${gain} Essence`, "#ff8a2a");
     return gain;
   };
   G.buyStar = function (id) {
@@ -462,8 +462,8 @@
     const s = G.s, mine = G.party.filter(Boolean).map((p) => p.b);
     const low = mine.slice().sort((a, b) => a.s - b.s)[0], any = G.pick(mine);
     const offers = [{ k: "reroll", u: any.u, text: "Reforge the affixes on " + G.bladeName(any) }];
-    if (low.s < 5) offers.push({ k: "star", u: low.u, text: "Add a star to " + G.bladeName(low) }); else offers.push({ k: "sigils", text: "Take 3 sigils" });
-    offers.push(G.unlocked("runes") ? { k: "rune", text: "Take a rune from the smith's pack" } : { k: "sigils", text: "Take 3 sigils" });
+    if (low.s < 5) offers.push({ k: "star", u: low.u, text: "Add a ★ rank to " + G.bladeName(low) }); else offers.push({ k: "sigils", text: "Take 3 gems" });
+    offers.push(G.unlocked("runes") ? { k: "rune", text: "Take a rune from the smith's pack" } : { k: "sigils", text: "Take 3 gems" });
     return offers;
   }
   G.smith = function (o) {
@@ -487,19 +487,19 @@
     const s = G.s; if (s.omen.sealed <= 0) return null;
     s.omen.sealed--;
     const r = Math.random();
-    if (r < 0.6) { const n = G.randInt(2, 4); s.sigils += n; return `+${n} sigils`; }
+    if (r < 0.6) { const n = G.randInt(2, 4); s.sigils += n; return `+${n} gems`; }
     if (r < 0.85 && G.unlocked("runes")) return G.runeName(G.dropRune());
-    const v = Math.ceil(G.soulBase(s.best) * 400 * G.mod.souls); s.souls += v; return `+${G.fmt(v)} souls`;
+    const v = Math.ceil(G.soulBase(s.best) * 400 * G.mod.souls); s.souls += v; return `+${G.fmt(v)} gold`;
   };
   G.secret = function () {
     const s = G.s; s.secrets++;
     const v = Math.ceil(G.soulBase(s.best) * 150 * G.mod.souls); s.souls += v;
-    let extra = ""; if (s.secrets % 5 === 0) { s.sigils += 1; extra = " +1 sigil"; }
+    let extra = ""; if (s.secrets % 5 === 0) { s.sigils += 1; extra = " +1 gem"; }
     const line = G.WHISPERS[(s.secrets - 1) % G.WHISPERS.length];
     G.log("A whisper: " + line, "#b56bff");
     return { souls: v, line, extra };
   };
-  G.starfall = function () { G.s.star = Date.now() + 10 * 60 * 1000; emit("star"); G.log("A falling star: top-tier odds doubled for 10 minutes", "#ffe9a8"); };
+  G.starfall = function () { G.s.star = Date.now() + 10 * 60 * 1000; emit("star"); G.log("A falling star: Legendary odds doubled for 10 minutes", "#ffe9a8"); };
 
   // ---------- expeditions ----------
   G.EXP_SLOTS = 2;
@@ -531,7 +531,7 @@
   function endRift(wiped) {
     const s = G.s, depth = G.rift.floor - G.rift.start, rew = 2 + Math.floor(depth / 2);
     s.sigils += rew; s.rift.best = Math.max(s.rift.best || 0, depth); G.rift = null;
-    emit("riftEnd", { depth, rew, wiped }); G.log(`Rift closed at depth ${depth}: +${rew} sigils`, "#b56bff");
+    emit("riftEnd", { depth, rew, wiped }); G.log(`Daily trial over at depth ${depth}: +${rew} gems`, "#b56bff");
     G.startFloor(1.5);
   }
 

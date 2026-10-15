@@ -11,15 +11,15 @@ window.G = window.G || {};
     lightning: { label: "Storm", color: "#ffe14a", counter: ["undead"], trait: "Strikes chain to a second foe" },
     holy: { label: "Holy", color: "#ffe9a8", counter: ["demon"], trait: "Kills mend the most wounded blade" },
     void: { label: "Void", color: "#b56bff", counter: ["holy"], trait: "Executes foes below 12% health" },
-    poison: { label: "Venom", color: "#7dff8f", counter: ["beast", "nature"], trait: "+15% damage for the whole warband" },
-    steel: { label: "Steel", color: "#c3ccd9", counter: [], trait: "+30% guard for the whole warband" },
+    poison: { label: "Venom", color: "#7dff8f", counter: ["beast", "nature"], trait: "+15% damage for the whole team" },
+    steel: { label: "Steel", color: "#c3ccd9", counter: [], trait: "+30% health for the whole team" },
   };
 
   G.TIER = {
-    common: { label: "Stone", color: "#9aa0a8", rank: 0, affix: 1, scale: 0.5, salvage: 1 },
-    rare: { label: "Frost", color: "#55c6f8", rank: 1, affix: 1, scale: 0.65, salvage: 3 },
-    epic: { label: "Arcane", color: "#b872ff", rank: 2, affix: 2, scale: 0.8, salvage: 10 },
-    legendary: { label: "Forge", color: "#ffab2e", rank: 3, affix: 3, scale: 0.95, salvage: 40 },
+    common: { label: "Common", color: "#9aa0a8", rank: 0, affix: 1, scale: 0.5, salvage: 1 },
+    rare: { label: "Rare", color: "#55c6f8", rank: 1, affix: 1, scale: 0.65, salvage: 3 },
+    epic: { label: "Epic", color: "#b872ff", rank: 2, affix: 2, scale: 0.8, salvage: 10 },
+    legendary: { label: "Legendary", color: "#ffab2e", rank: 3, affix: 3, scale: 0.95, salvage: 40 },
     mythic: { label: "Mythic", color: "#ff4558", rank: 4, affix: 4, scale: 1.1, salvage: 150 },
   };
   G.TIERS = ["common", "rare", "epic", "legendary", "mythic"];
@@ -55,12 +55,12 @@ window.G = window.G || {};
   // v: [min,max] at full scale. pre/suf feed the generated blade name.
   G.AFFIX = {
     atk: { pre: "Vicious", suf: "of Ruin", v: [8, 30], lab: (v) => `+${v}% attack` },
-    hp: { pre: "Stalwart", suf: "of the Bulwark", v: [10, 40], lab: (v) => `+${v}% guard` },
+    hp: { pre: "Stalwart", suf: "of the Bulwark", v: [10, 40], lab: (v) => `+${v}% health` },
     crit: { pre: "Keen", suf: "of the Hawk", v: [5, 15], lab: (v) => `+${v}% critical chance` },
     cdmg: { pre: "Cruel", suf: "of Slaughter", v: [20, 60], lab: (v) => `+${v}% critical damage` },
     aspd: { pre: "Howling", suf: "of the Wolf", v: [5, 20], lab: (v) => `+${v}% attack speed` },
     rage: { pre: "Thirsting", suf: "of Fury", v: [10, 40], lab: (v) => `+${v}% rage gain` },
-    soul: { pre: "Gravebound", suf: "of the Reaper", v: [3, 10], lab: (v) => `+${v}% souls from all kills` },
+    soul: { pre: "Gravebound", suf: "of the Reaper", v: [3, 10], lab: (v) => `+${v}% gold from all kills` },
     cleave: { pre: "Sweeping", suf: "of the Reaping", v: [30, 60], lab: (v) => `Cleave: hits a second foe for ${v}%` },
     slay_brute: { pre: "Giantsbane", suf: "of the Goblin-Hunter", v: [15, 40], lab: (v) => `+${v}% damage to Brutes` },
     slay_undead: { pre: "Hallowed", suf: "of the Last Vigil", v: [15, 40], lab: (v) => `+${v}% damage to Undead` },
@@ -74,9 +74,9 @@ window.G = window.G || {};
 
   G.RUNE = {
     might: { name: "Rune of Might", glyph: "ᚢ", v: [10, 20, 35], lab: (v) => `+${v}% attack` },
-    ward: { name: "Rune of Warding", glyph: "ᚦ", v: [15, 30, 50], lab: (v) => `+${v}% guard` },
+    ward: { name: "Rune of Warding", glyph: "ᚦ", v: [15, 30, 50], lab: (v) => `+${v}% health` },
     haste: { name: "Rune of Haste", glyph: "ᚱ", v: [6, 12, 20], lab: (v) => `+${v}% attack speed` },
-    greed: { name: "Rune of Greed", glyph: "ᚠ", v: [5, 10, 18], lab: (v) => `+${v}% souls from all kills` },
+    greed: { name: "Rune of Greed", glyph: "ᚠ", v: [5, 10, 18], lab: (v) => `+${v}% gold from all kills` },
     fury: { name: "Rune of Fury", glyph: "ᚲ", v: [15, 30, 50], lab: (v) => `+${v}% rage gain` },
   };
   G.RUNE_KEYS = Object.keys(G.RUNE);
@@ -84,12 +84,12 @@ window.G = window.G || {};
   // Constellation: permanent, bought with Embers. cost(level) = base + step*level
   G.STARS = [
     { id: "might", name: "The Edge", desc: "+10% damage", max: 25, base: 1, step: 1, x: 150, y: 40 },
-    { id: "vital", name: "The Bulwark", desc: "+10% guard", max: 25, base: 1, step: 1, x: 70, y: 84 },
-    { id: "avarice", name: "The Reaper", desc: "+10% souls", max: 25, base: 1, step: 1, x: 232, y: 84 },
+    { id: "vital", name: "The Bulwark", desc: "+10% health", max: 25, base: 1, step: 1, x: 70, y: 84 },
+    { id: "avarice", name: "The Reaper", desc: "+10% gold", max: 25, base: 1, step: 1, x: 232, y: 84 },
     { id: "fortune", name: "The Hawk", desc: "+2% critical chance", max: 10, base: 2, step: 1, x: 150, y: 110 },
-    { id: "vigil", name: "The Watchfire", desc: "+5% away rate, +1 h away cap", max: 6, base: 2, step: 2, x: 52, y: 170 },
+    { id: "vigil", name: "The Watchfire", desc: "+5% offline earnings, +1 h offline cap", max: 6, base: 2, step: 2, x: 52, y: 170 },
     { id: "momentum", name: "The Stair", desc: "Start each run 5 floors deeper", max: 8, base: 3, step: 2, x: 150, y: 184 },
-    { id: "insight", name: "The Eye", desc: "Omens arrive 10% more often", max: 5, base: 2, step: 2, x: 250, y: 170 },
+    { id: "insight", name: "The Eye", desc: "Events arrive 10% more often", max: 5, base: 2, step: 2, x: 250, y: 170 },
   ];
   G.STAR_LINKS = [["might", "vital"], ["might", "avarice"], ["might", "fortune"], ["vital", "vigil"], ["avarice", "insight"], ["fortune", "momentum"], ["vigil", "momentum"], ["insight", "momentum"]];
 
@@ -105,19 +105,19 @@ window.G = window.G || {};
   G.CHAMP_TRAITS = ["Molten", "Vampiric", "Stoneskin", "Frenzied", "Spectral"];
 
   G.PATHS = [
-    { id: "vault", name: "Gilded Vault", desc: "+60% souls. Foes have 25% more health.", color: "#ffd24a", souls: 1.6, ehp: 1.25 },
-    { id: "rush", name: "Collapsed Stair", desc: "7 waves per floor. Foes hit 20% harder.", color: "#62dcff", waves: 7, eatk: 1.2 },
-    { id: "haunt", name: "Whispering Hall", desc: "Omens come twice as often.", color: "#b56bff", omen: 2 },
-    { id: "calm", name: "Pilgrim Road", desc: "Foes hit 30% softer. 20% fewer souls.", color: "#7dff8f", eatk: 0.7, souls: 0.8 },
+    { id: "vault", name: "Gilded Vault", desc: "+60% gold. Monsters have 25% more health.", color: "#ffd24a", souls: 1.6, ehp: 1.25 },
+    { id: "rush", name: "Collapsed Stair", desc: "7 waves per floor. Monsters hit 20% harder.", color: "#62dcff", waves: 7, eatk: 1.2 },
+    { id: "haunt", name: "Whispering Hall", desc: "Events come twice as often.", color: "#b56bff", omen: 2 },
+    { id: "calm", name: "Pilgrim Road", desc: "Monsters hit 30% softer. 20% less gold.", color: "#7dff8f", eatk: 0.7, souls: 0.8 },
   ];
 
   G.UNLOCK = { slot4: 5, ult: 5, slot5: 10, ten: 10, runes: 20, ascend: 20, expedition: 30, bounty: 30, rift: 40, rebirth: 40 };
   G.UNLOCK_TEXT = [
     [5, "Fourth blade slot and ultimates"],
-    [10, "Fifth slot, ten-pulls and resonance"],
-    [20, "Runes and ascension"],
-    [30, "Expeditions and bounties"],
-    [40, "Daily rift, rebirth and the constellation"],
+    [10, "Fifth slot and 10x summons"],
+    [20, "Runes and merging duplicates"],
+    [30, "Missions and daily quests"],
+    [40, "Daily trial and rebirth"],
   ];
 
   G.BOUNTY_POOL = [
@@ -140,7 +140,7 @@ window.G = window.G || {};
     { id: "f4", name: "Second Descent", text: "Reach floor 120", get: (s) => s.best, goal: 120, rew: 25 },
     { id: "p1", name: "Collector", text: "Summon 50 blades", get: (s) => s.pulls, goal: 50, rew: 5 },
     { id: "p2", name: "Hoarder", text: "Summon 500 blades", get: (s) => s.pulls, goal: 500, rew: 20 },
-    { id: "l1", name: "Forgeborn", text: "Summon a Forge-tier blade", get: (s) => s.stat.legend, goal: 1, rew: 5 },
+    { id: "l1", name: "Forgeborn", text: "Summon a Legendary blade", get: (s) => s.stat.legend, goal: 1, rew: 5 },
     { id: "r1", name: "Phoenix", text: "Rebirth once", get: (s) => s.rebirths, goal: 1, rew: 5 },
     { id: "r2", name: "Wheel of Ash", text: "Rebirth 10 times", get: (s) => s.rebirths, goal: 10, rew: 20 },
     { id: "i1", name: "Sack Cutter", text: "Catch 10 treasure imps", get: (s) => s.stat.imps, goal: 10, rew: 5 },
@@ -160,8 +160,8 @@ window.G = window.G || {};
   ];
 
   G.RIFT_MODS = [
-    { id: "frail", name: "Glass Edge", desc: "Blades deal double damage and have half guard." },
-    { id: "swarm", name: "The Swarm", desc: "Five foes in every wave, each with less health." },
+    { id: "frail", name: "Glass Edge", desc: "Blades deal double damage and have half health." },
+    { id: "swarm", name: "The Swarm", desc: "Five monsters in every wave, each with less health." },
     { id: "eclipse", name: "Eclipse", desc: "Only the featured element deals full damage." },
   ];
 })();

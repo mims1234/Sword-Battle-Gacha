@@ -8,30 +8,30 @@
         <link rel="manifest" href="manifest.json" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="css/game.css?v=4.0" />
+        <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="css/game.css?v=4.1" />
     </head>
     <body>
         <div id="boot" class="boot">
             <div class="boot-mark">ᛟ</div>
             <h1>Idle Blade Master</h1>
-            <p>The descent</p>
+            <p>Loading the dungeon</p>
         </div>
 
         <div id="app" class="app">
             <header id="top" class="top">
-                <button class="floor" data-act="open" data-p="journal" title="Journal">
+                <button class="floor" data-act="open" data-p="journal" title="Quests">
                     <b id="floorNo">Floor 1</b>
                     <span id="biome">Goblin Warrens</span>
                     <span class="pips" id="pips"></span>
                 </button>
                 <nav id="deskNav" class="desknav" aria-label="Screens"></nav>
                 <div class="cur">
-                    <span class="c-soul" title="Souls: raise slot levels"><i>✦</i><b id="souls">0</b></span>
-                    <span class="c-sig" title="Sigils: summon blades"><i>◆</i><b id="sigils">0</b></span>
-                    <span class="c-emb" id="embWrap" title="Embers: constellation" hidden><i>✹</i><b id="embers">0</b></span>
+                    <span class="c-gold" title="Gold: level up your team"><i class="ic gold"></i><b id="souls">0</b></span>
+                    <button class="c-gem" data-act="open" data-p="forge" title="Gems: summon new blades"><i class="ic gem"></i><b id="sigils">0</b></button>
+                    <span class="c-ess" id="embWrap" title="Essence: rebirth upgrades" hidden><i class="ic ess"></i><b id="embers">0</b></span>
                 </div>
-                <button class="omen" id="omenBtn" data-act="omenInfo" title="Omen candle" aria-label="Omen candle"><span class="wick"></span><span class="flame" id="flame"></span></button>
+                <button class="omen" id="omenBtn" data-act="omenInfo" title="Event candle" aria-label="Event candle"><span class="wick"></span><span class="flame" id="flame"></span></button>
                 <button class="iconbtn" data-act="open" data-p="more" aria-label="Menu">☰</button>
             </header>
 
@@ -61,24 +61,26 @@
             </main>
 
             <nav id="tabs" class="tabs" aria-label="Screens">
-                <button data-act="close" data-tab="descent"><i>⚔</i>Descent</button>
-                <button data-act="open" data-p="warband" data-tab="warband"><i>⛨</i>Warband</button>
-                <button data-act="open" data-p="forge" data-tab="forge"><i>ᛟ</i>Forge<em id="forgeDot" hidden></em></button>
-                <button data-act="open" data-p="journal" data-tab="journal"><i>✎</i>Journal<em id="journalDot" hidden></em></button>
+                <button data-act="close" data-tab="descent"><i>⚔</i>Battle</button>
+                <button data-act="open" data-p="warband" data-tab="warband"><i>⛨</i>Team</button>
+                <button data-act="open" data-p="forge" data-tab="forge"><i>◆</i>Summon<em id="forgeDot" hidden></em></button>
+                <button data-act="open" data-p="journal" data-tab="journal"><i>✎</i>Quests<em id="journalDot" hidden></em></button>
                 <button data-act="open" data-p="more" data-tab="more"><i>☰</i>More</button>
             </nav>
 
+            <div id="summon" class="smview" hidden></div>
+            <div id="coach" class="coach" hidden></div>
             <div id="modal" class="modal" hidden><div class="modal-card" id="modalCard"></div></div>
         </div>
 
-        <script src="js/data.swords.js?v=4.0"></script>
-        <script src="js/data.monsters.js?v=4.0"></script>
-        <script src="js/data.game.js?v=4.0"></script>
-        <script src="js/state.js?v=4.0"></script>
-        <script src="js/sim.js?v=4.0"></script>
-        <script src="js/render.js?v=4.0"></script>
-        <script src="js/audio.js?v=4.0"></script>
-        <script src="js/ui.js?v=4.0"></script>
-        <script src="js/main.js?v=4.0"></script>
+        <script src="js/data.swords.js?v=4.1"></script>
+        <script src="js/data.monsters.js?v=4.1"></script>
+        <script src="js/data.game.js?v=4.1"></script>
+        <script src="js/state.js?v=4.1"></script>
+        <script src="js/sim.js?v=4.1"></script>
+        <script src="js/render.js?v=4.1"></script>
+        <script src="js/audio.js?v=4.1"></script>
+        <script src="js/ui.js?v=4.1"></script>
+        <script src="js/main.js?v=4.1"></script>
     </body>
 </html>
