@@ -67,6 +67,8 @@
     if (!el) { if (pool.length >= 6) el = pool[0]; else { el = new Audio(src); el.preload = "auto"; pool.push(el); } }
     return el;
   }
+  // Big moments get the stage to themselves: the music fades out under them and comes back after.
+  const DUCK = { reveal_3: 1, reveal_4: 1, summon_charge: 1, boss: 1, boss_down: 1, rebirth: 1, unlock: 1, wipe: 1 };
   function sample(id, rate, vol) {
     const files = (window.SFX_FILES || {})[id]; if (!files || !files.length) return false;
     const el = playerFor(files[Math.floor(Math.random() * files.length)]);
@@ -74,6 +76,7 @@
     el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = false;
     el.playbackRate = rate; el.volume = Math.min(1, vol * A.sfxVol());
     el.play().catch(() => {});
+    if (DUCK[id]) A.duck((isFinite(el.duration) && el.duration > 0 ? el.duration : 3) + 0.3);
     return true;
   }
   A.preloadSfx = function () { const f = window.SFX_FILES || {}; Object.keys(f).forEach((id) => f[id].forEach((src) => { if (!pools[src]) playerFor(src); })); };
@@ -150,6 +153,8 @@
   function schedule() {
     if (!mus || !mus.th) return;
     const th = mus.th, spb = 60 / th.bpm, now = ctx.currentTime;
+    if (performance.now() < duckEnd) { mus.next = Math.max(mus.next, now + 0.1); mus.wasDucked = true; return; }
+    if (mus.wasDucked) { mus.wasDucked = false; mus.bus.gain.setTargetAtTime(1.1 * A.musicVol(), now, 0.5); }
     while (mus.next < now + 0.4) {
       const t = mus.next, beat = mus.beat;
       if (beat % 8 === 0) { const step = PROG[(beat / 8) % PROG.length]; mus.chord = step; mus.pad.oscs.forEach((x) => x.o.frequency.setTargetAtTime(hz(deg(th, step) - 12 + x.iv), t, 0.6)); }
@@ -166,12 +171,24 @@
   const recVol = () => A.musicVol();
   let rec = null, recT = null;
   function fade(el, to, secs) { el._f = { from: el.volume, to, t0: performance.now(), d: Math.max(1, secs * 1000) }; }
+  let duckEnd = 0;
+  A.duck = function (secs) {
+    const was = performance.now() < duckEnd;
+    duckEnd = Math.max(duckEnd, performance.now() + secs * 1000);
+    if (rec && !was) { rec.ducked = true; rec.els.forEach((el) => { if (!el.paused) fade(el, 0, 0.25); }); }
+    if (mus) mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08);
+  };
   function recTick() {
     const now = performance.now(), all = rec ? rec.els.concat(rec.old || []) : [];
     all.forEach((el) => { const f = el._f; if (!f) return; const k = Math.min(1, (now - f.t0) / f.d); el.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * k)); if (k >= 1) { el._f = null; if (f.to === 0) el.pause(); } });
     if (rec && rec.old && rec.old.every((el) => el.paused)) rec.old = null;
     if (!rec) return;
     const a = rec.els[rec.i], b = rec.els[1 - rec.i];
+    if (rec.ducked) {
+      if (now < duckEnd) return;
+      // The moment is over: bring the music back (a track that started during the moment plays from its beginning).
+      rec.ducked = false; a.play().catch(() => {}); fade(a, recVol(), 1.5); return;
+    }
     if (a.paused && !a._f && rec.on) a.play().catch(() => {});
     if (a.duration && a.currentTime > a.duration - XF && !b._f && b.paused) {
       b.currentTime = 0; b.volume = 0; b.play().catch(() => {}); fade(b, recVol(), XF); fade(a, 0, XF); rec.i = 1 - rec.i;
@@ -182,10 +199,12 @@
     const old = rec ? rec.els : [];
     old.forEach((el) => fade(el, 0, 1.5));
     const mk = () => { const el = new Audio(src); el.preload = "auto"; el.volume = 0; return el; };
-    rec = { id, els: [mk(), mk()], i: 0, on: true, old };
-    rec.els[0].play().catch(() => {}); fade(rec.els[0], recVol(), 2.5);
+    const ducking = performance.now() < duckEnd;
+    rec = { id, els: [mk(), mk()], i: 0, on: true, old, ducked: ducking };
+    if (!ducking) { rec.els[0].play().catch(() => {}); fade(rec.els[0], recVol(), 2.5); }
     if (!recT) recT = setInterval(recTick, 80);
   }
+  A.musicState = () => (rec ? { id: rec.id, ducked: !!rec.ducked, paused: rec.els[rec.i].paused, vol: +rec.els[rec.i].volume.toFixed(2), at: +rec.els[rec.i].currentTime.toFixed(1) } : null); // for debugging
   function stopRec() { if (!rec) return; rec.els.forEach((el) => fade(el, 0, 0.8)); rec.on = false; const r = rec; setTimeout(() => { if (rec === r && !r.on) { r.els.forEach((el) => el.pause()); rec = null; } }, 1200); }
   function stopSynth() { if (!mus) return; killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; }
 

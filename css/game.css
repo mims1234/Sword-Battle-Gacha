@@ -344,3 +344,15 @@ body.wide .band { gap: 10px; padding-top: 10px; }
 .volrow { display: grid; grid-template-columns: 120px 1fr 44px; align-items: center; gap: 10px; padding: 4px 0 8px; font: 600 13px var(--px); color: var(--dim); }
 .volrow input { width: 100%; accent-color: var(--gold); }
 .volrow b { font: 600 13px var(--px); color: #fff3d6; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Numbers: the pixel face draws 3, 5 and 8 almost alike, so every place that shows a
+   number uses the readable sans in heavy weight with even-width digits. */
+:root { --num: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; }
+.floor b, .cur b, .slot .lv, .slot .pos, .lvl b, .report b, .bcard .stats b, .sm-gems b, .badge b, .gn,
+.mb, .starrow em, .beast small, .rates, .pity b, #sumGems, .volrow b, .chip, .toast, .bossbar span, .claimrow small {
+  font-family: var(--num); font-weight: 800; font-variant-numeric: tabular-nums lining-nums; letter-spacing: .02em;
+}
+.floor b { font-size: 18px; letter-spacing: .03em; }
+.cur b { font-size: 15px; }
+.slot .lv, .slot .pos { font-size: 12px; }
+.lvl b { font-size: 13px; }
