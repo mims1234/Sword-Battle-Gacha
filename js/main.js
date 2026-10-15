@@ -23,7 +23,7 @@
     if (!G.paused) G.onlineTick(dt);
     dispatch();
     G.render.frame(dt); G.ui.frame(now);
-    secT += dt; if (secT >= 1) { secT = 0; G.rollBounties(); G.ui.slowTick(); }
+    secT += dt; if (secT >= 1) { secT = 0; G.rollBounties(); G.ui.slowTick(); G.audio.music(); }
     saveT += dt; if (saveT >= 15) { saveT = 0; if (!G.noSave) G.save(); }
     requestAnimationFrame(loop);
   }

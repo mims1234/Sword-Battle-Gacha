@@ -1,7 +1,7 @@
 // ===================== STATE, SAVE, DERIVED STATS =====================
 (function () {
   const G = window.G;
-  G.VERSION = "4.1";
+  G.VERSION = "4.2";
   G.SAVE_KEY = "idle_blade_master_v4";
   G.V3_KEY = "idle_blade_master_v3";
   G.SW = window.SWORDS_DATA || [];
@@ -44,7 +44,7 @@
       floor: 1, best: 1, runBest: 1, runSig: 0, hold: false, wall: 0, pity: 0, pulls: 0, kills: 0, mk: {}, gild: {}, con: {}, rebirths: 0,
       bounty: null, feats: {}, exp: [], rift: { day: "", best: 0 }, omen: { since: 0, pend: null, sealed: 0 }, moon: 0, curse: 0, path: null,
       boon: false, star: 0, secrets: 0, uid: 1, log: [], tips: {},
-      set: { sound: true, calm: false, autoUlt: true, speed: 1 },
+      set: { sound: true, music: true, calm: false, autoUlt: true, speed: 1 },
       stat: { dmg: 0, ults: 0, legend: 0, wipes: 0, imps: 0, floors: 0, online: 0 },
       last: Date.now(), born: Date.now(),
     };
@@ -200,7 +200,8 @@
     } catch (e) { ok = false; }
     if (!ok) G.s = G.fresh();
     G.sanitize();
-    if (!G.s.blades.length) starter();
+    // New players start with gems and no blades: the first guide walks them through summoning.
+    if (!G.s.blades.length && G.s.pulls > 0) starter();
     if (!G.s.party.some((u) => G.blade(u))) G.autoParty();
     G.rollBounties();
     G.recalc();

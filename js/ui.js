@@ -8,6 +8,8 @@
   const tcol = (b) => G.TIER[b.t].color;
   const starsOf = (b) => (b.s ? `<span class="stars">${"★".repeat(b.s)}</span>` : "");
   const GOLD = `<i class="ic gold"></i>`, GEM = `<i class="ic gem"></i>`, ESS = `<i class="ic ess"></i>`;
+  const guideOpen = (g) => G.guideOpen(g);
+  const pullLocked = () => !!U.pull && (U.pull.phase === "charge" || Date.now() < (U.pull.lockUntil || 0));
   const SLOTNAME = ["Front 1", "Front 2", "Back 1", "Back 2", "Back 3"];
   const SLOTUNLOCK = [0, 0, 0, G.UNLOCK.slot4, G.UNLOCK.slot5];
 
@@ -25,6 +27,7 @@
     rift: { title: "Daily Trial", fn: pTrial, lock: "rift" },
     more: { title: "Menu", fn: pMenu },
     settings: { title: "Settings", fn: pSettings },
+    guides: { title: "Guides", fn: pGuides },
   };
   const NAV = ["forge", "relics", "stars", "bestiary", "exp", "rift", "settings"];
   const navTitle = (p) => (p === "forge" ? "Summon" : PANELS[p].title);
@@ -183,13 +186,15 @@
       stage = `<div class="sm-stage shown" style="--rc:${G.TIER[U.pull.best].color}"><div class="rays${G.TIER[U.pull.best].rank >= 3 ? " on" : ""}"></div><div class="pulls ${one ? "n1" : "n10"}">` + U.pull.list.map((b, i) => `<button class="pcard${U.pull.fresh ? " anim" : ""}" data-act="tile" data-u="${b.u}" style="--tc:${tcol(b)};animation-delay:${i * 90}ms">${U.pull.isNew[i] ? '<em class="new">NEW</em>' : ""}${sw(b.i)}<span class="rar">${G.TIER[b.t].label}</span><span class="nm">${esc(one ? G.bladeName(b) : G.SW[b.i].name)}</span>${one ? b.a.map((a) => `<span class="af">${G.AFFIX[a[0]].lab(a[1])}</span>`).join("") : ""}</button>`).join("") + `</div><p class="tap">Tap a blade to see it</p></div>`;
       U.pull.fresh = false;
     } else stage = `<div class="sm-stage idle"><div class="altar"><div class="ring"></div><div class="gemfloat"></div><div class="plinth"></div></div></div>`;
-    $("summon").innerHTML = `<div class="sm-head"><button class="iconbtn" data-act="closeSummon" aria-label="Back">←</button><h2>Summon</h2><span class="sm-gems">${GEM}<b>${G.fmt(s.sigils)}</b></span></div>
+    // Summon 10 is open for the very first summon so new players start with a full choice of blades.
+    const busy = pullLocked(), ten10 = ten || s.pulls === 0;
+    $("summon").innerHTML = `<div class="sm-head"><button class="iconbtn" data-act="closeSummon" aria-label="Back">←</button><h2>Summon</h2><span class="sm-gems">${GEM}<b>${G.fmt(s.sigils)}</b></span><button class="iconbtn help" data-act="help" data-p="forge" aria-label="How summoning works">?</button></div>
       <div class="sm-body">
         <div class="banner" style="--ec:${G.EL[el].color}"><b>This week: more ${G.EL[el].label} blades</b><span>Half of your summons come from the ${G.EL[el].label} pool.</span></div>
         ${stage}
         <div class="sm-btns">
-          <button class="btn gold big" data-act="summon" data-n="1" ${s.sigils >= 1 ? "" : "disabled"}>Summon 1<small>${GEM} 1</small></button>
-          <button class="btn gold big" data-act="summon" data-n="10" ${ten && s.sigils >= 10 ? "" : "disabled"}>${ten ? "Summon 10" : "Summon 10"}<small>${ten ? GEM + " 10 · 1 Epic or better guaranteed" : "Unlocks at floor 10"}</small></button>
+          <button class="btn gold big" data-act="summon" data-n="1" ${s.sigils >= 1 && !busy ? "" : "disabled"}>Summon 1<small>${GEM} 1</small></button>
+          <button class="btn gold big" data-act="summon" data-n="10" ${ten10 && s.sigils >= 10 && !busy ? "" : "disabled"}>Summon 10<small>${ten10 ? GEM + " 10 · 1 Epic or better guaranteed" : "Unlocks at floor 10"}</small></button>
         </div>
         <div class="pity"><div class="bar"><i style="width:${(s.pity / G.PITY_HARD) * 100}%"></i></div><span>${s.boon ? "Hollow Blade reward: your next summon is Legendary or better." : `Legendary guaranteed within <b>${G.PITY_HARD - s.pity}</b> summons. Chance right now: ${(top * 100).toFixed(1)}%.`}</span></div>
         ${blessed ? `<div class="res" style="color:#ffe9a8">Falling star: Legendary chance doubled for ${G.fmtTime((s.star - Date.now()) / 1000)}.</div>` : ""}
@@ -262,13 +267,43 @@
       <div class="rowbtns center"><button class="btn gold big" data-act="startRift" ${used || G.rift ? "disabled" : ""}>${G.rift ? "In progress" : used ? "Come back tomorrow" : "Start the trial"}</button></div>`;
   }
 
+  // Each entry: a picture, what it is in a few words, and a live status so the player knows where to go.
+  function menuInfo(p) {
+    const s = G.s, now = Date.now();
+    switch (p) {
+      case "warband": { const b = G.party.find(Boolean); return { icon: b ? sw(b.b.i, "mi-sprite") : "⛨", col: "#f2c14e", desc: "Choose which blades fight", badge: G.party.filter(Boolean).length + "/" + G.slotCount() + " in team", hot: !G.party.some(Boolean) }; }
+      case "forge": return { icon: '<i class="mi-gem"></i>', col: "#6fd6ff", desc: "Spend gems on new blades", badge: GEM + G.fmt(s.sigils), hot: s.sigils >= 1 };
+      case "journal": { const n = (s.bounty ? s.bounty.list.filter((x) => x.n >= x.goal && !x.done).length : 0) + G.FEATS.filter((x) => !s.feats[x.id] && x.get(s) >= x.goal).length + s.omen.sealed; return { icon: "✎", col: "#e8d8a8", desc: "Goals and rewards", badge: n ? n + " to collect" : "Nothing to collect", hot: n > 0 }; }
+      case "relics": { const g = {}; s.runes.forEach((r) => (g[r.k + r.t] = (g[r.k + r.t] || 0) + 1)); const fuse = Object.keys(g).some((k) => g[k] >= 3 && k.slice(-1) !== "3"); return { icon: "ᚢ", col: "#55c6f8", desc: "Power up blades with runes", badge: fuse ? "Can combine" : s.runes.length + " spare", hot: fuse }; }
+      case "stars": { const gain = G.emberGain(s.runBest); return { icon: '<i class="mi-ess"></i>', col: "#d08aff", desc: "Restart stronger, buy upgrades", badge: gain > 0 ? "+" + gain + " Essence ready" : ESS + G.fmt(s.embers), hot: gain > 0 && (s.wallHits || 0) >= 2 }; }
+      case "bestiary": return { icon: mo(52, "mi-sprite"), col: "#7affc8", desc: "Every monster you have met", badge: Object.keys(s.mk).length + "/" + G.MON.length + " found" };
+      case "exp": { const done = s.exp.filter((e) => now >= e.end).length, away = s.exp.length - done; return { icon: sw(13, "mi-sprite"), col: "#ffb45a", desc: "Spare blades bring back loot", badge: done ? done + " back home" : away ? away + " away" : G.EXP_SLOTS + " free", hot: done > 0 }; }
+      case "rift": { const used = s.rift.day === G.day(); return { icon: "⧗", col: "#b56bff", desc: "3-minute challenge, once a day", badge: used ? "Done today" : "Ready", hot: !used }; }
+      case "guides": return { icon: "?", col: "#9fe870", desc: "Replay any tutorial", badge: G.GUIDES.filter((g) => guideOpen(g)).length + " guides" };
+      case "settings": return { icon: "⚙", col: "#a8977d", desc: "Sound, save code, stats", badge: "" };
+    }
+    return { icon: "?", col: "#888", desc: "", badge: "" };
+  }
   function pMenu() {
-    return `<div class="menu">` + ["warband", "forge", "journal"].concat(NAV).filter((p, i, a) => a.indexOf(p) === i && !(wide && (p === "warband" || p === "journal"))).map((p) => { const t = p === "forge" ? "Summon" : PANELS[p].title, lock = navLock(p); return `<button data-act="open" data-p="${p}" class="${lock ? "locked" : ""}">${t}${lock ? `<small>Floor ${G.UNLOCK[PANELS[p].lock]}</small>` : ""}</button>`; }).join("") + `</div>`;
+    const list = ["warband", "forge", "journal"].concat(NAV).concat(["guides"]).filter((p, i, a) => a.indexOf(p) === i && !(wide && (p === "warband" || p === "journal")));
+    return `<div class="menu">` + list.map((p) => {
+      const t = p === "forge" ? "Summon" : PANELS[p].title, lock = navLock(p), m = menuInfo(p);
+      const need = lock ? G.UNLOCK[PANELS[p].lock] : 0;
+      const status = lock ? `<span class="mb lockb">🔒 Floor ${need}<i class="bar"><i style="width:${Math.min(100, (G.s.best / need) * 100)}%"></i></i></span>` : m.badge ? `<span class="mb${m.hot ? " hot" : ""}">${m.badge}</span>` : "";
+      return `<button class="mcard${lock ? " locked" : ""}" data-act="open" data-p="${p}" style="--mc:${m.col}"><span class="mi">${m.icon}</span><span class="mt"><b>${t}</b><small>${lock ? "Unlocks at floor " + need : m.desc}</small>${status}</span>${m.hot && !lock ? '<em class="mdot"></em>' : ""}</button>`;
+    }).join("") + `</div>`;
+  }
+
+  function pGuides() {
+    return `<p class="hint">Tap a guide to replay it. New guides appear as you go deeper.</p><div class="menu">` + G.GUIDES.map((g) => {
+      const ok = guideOpen(g), seen = G.s.tips && G.s.tips["g_" + g.id];
+      return `<button class="mcard${ok ? "" : " locked"}" data-act="${ok ? "guide" : "noop"}" data-id="${g.id}" style="--mc:${g.col}"><span class="mi">${g.icon}</span><span class="mt"><b>${g.name}</b><small>${ok ? g.steps.length + " steps" : "Unlocks at floor " + g.floor}</small>${ok ? `<span class="mb${seen ? "" : " hot"}">${seen ? "Replay" : "New"}</span>` : ""}</span></button>`;
+    }).join("") + `</div>`;
   }
 
   function pSettings() {
     const s = G.s, t = (k, label, hint) => `<div class="claimrow"><span><b>${label}</b><small>${hint}</small></span><button class="btn${s.set[k] ? " gold" : ""}" data-act="set" data-k="${k}">${s.set[k] ? "On" : "Off"}</button></div>`;
-    return t("sound", "Sound", "Game sounds") + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
+    return t("sound", "Sound", "All game sounds. Also on the ♪ button in the arena") + t("music", "Music", "Calm background music that changes with each area") + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
       `<h3>Stats</h3><div class="log"><p>Best floor ${s.best} · ${G.fmt(s.kills)} monsters defeated · ${s.pulls} summons</p><p>${s.rebirths} rebirths · ${s.stat.wipes} defeats · ${s.secrets} secrets found</p><p>${G.fmt(s.stat.dmg)} total damage · ${G.fmtTime(s.stat.online)} played</p></div>
       <h3>Save</h3><div class="rowbtns"><button class="btn" data-act="export">Copy save code</button><button class="btn" data-act="importAsk">Load save code</button><button class="btn danger" data-act="resetAsk">Delete save</button></div>
       <p class="hint">Idle Blade Master ${G.VERSION}. Keyboard: 1–5 cast ultimates, Space pauses, L levels up, S opens Summon.</p>`;
@@ -325,6 +360,7 @@
     const boss = C && C.state === "fight" && C.enemies.find((e) => (e.kind === "boss" || e.kind === "hollow") && e.hp > 0);
     $("bossBar").hidden = !boss; if (boss) { setText("bossName", boss.name); $("bossFill").style.width = (boss.hp / boss.max) * 100 + "%"; }
     const chips = [];
+    if (!G.party.some(Boolean)) chips.push(["#f2c14e", s.blades.length ? "Your team is empty" : "Summon blades to start", s.blades.length ? "openTeam" : "openSummon", s.blades.length ? "Pick team" : "Summon"]);
     if (G.rift) chips.push(["#b56bff", "Trial ends in " + G.fmtTime(G.rift.t)]);
     if (s.hold && !G.rift) chips.push(["#ffab2e", `Lost on floor ${s.wall || s.floor + 1}. Training on floor ${s.floor}`, "push", "Try again"]);
     if (s.path && !G.rift) chips.push(["#c9a24b", s.path.name]);
@@ -343,7 +379,9 @@
     if (feed !== feedKey) { feedKey = feed; $("info").innerHTML = feed; }
     $("forgeDot").hidden = s.sigils < 1;
     $("journalDot").hidden = !(s.omen.sealed > 0 || (G.unlocked("bounty") && s.bounty && s.bounty.list.some((x) => x.n >= x.goal && !x.done)) || G.FEATS.some((x) => !s.feats[x.id] && x.get(s) >= x.goal));
-    coach();
+    $("coach").hidden = true; // replaced by the guides
+    const mb = $("muteBtn"); if (mb) { setText("muteBtn", s.set.sound ? "♪" : "✕"); mb.classList.toggle("off", !s.set.sound); }
+    G.guideTick();
   }
 
   U.frame = function (now) {
@@ -413,7 +451,18 @@
     pause() { if (G.paused === "user") G.paused = null; else if (!G.paused) G.paused = "user"; },
     push() { G.pushOn(); U.toast("Your team will try the next floor again.", "#ffab2e"); },
     pick(d) { const i = +d.i; pickSlot = pickSlot === i ? null : i; dirty.warband = 1; },
-    tile(d) { const u = +d.u; if (pickSlot != null && (open === "warband" || wide) && $("modal").hidden && $("summon").hidden && G.blade(u) && !G.onExpedition(u)) { G.equip(u, pickSlot); pickSlot = null; afterPower(); G.audio.play("click"); } else U.inspect(u); },
+    tile(d) {
+      const u = +d.u, inTeamView = (open === "warband" || wide) && $("modal").hidden && $("summon").hidden && G.blade(u) && !G.onExpedition(u);
+      if (inTeamView && pickSlot != null) { G.equip(u, pickSlot); pickSlot = null; afterPower(); G.audio.play("click"); return; }
+      // With a free slot, tapping a blade that is not in the team adds it straight away.
+      const free = G.s.party.findIndex((x, k) => x == null && k < G.slotCount());
+      if (inTeamView && free >= 0 && !G.inParty(u)) { G.equip(u, free); afterPower(); G.audio.play("click"); U.toast(`${G.SW[G.blade(u).i].name} joins the team`, "#f2c14e"); return; }
+      U.inspect(u);
+    },
+    guide: (d) => { U.close(); G.startGuide(d.id, true); },
+    help: (d) => G.startGuide(G.helpFor(d.p || open), true),
+    guideNext: () => G.guideNext(), guideSkip: () => G.guideSkip(), noop: () => {},
+    mute() { G.s.set.sound = !G.s.set.sound; G.audio.unlock(); G.audio.music(); dirty.settings = 1; U.toast(G.s.set.sound ? "Sound on" : "Sound off", "#a8977d"); },
     inspect(d) { U.inspect(+d.u, d.m); },
     equip(d) { if (G.equip(+d.u, +d.i)) { afterPower(); U.closeModal(); G.audio.play("click"); } },
     autofill() { G.autoParty(); G.refreshBlades(); afterPower(); U.toast("Best blades added. Tanks go in front.", "#c9a24b"); },
@@ -426,15 +475,16 @@
     unsocket(d) { const b = G.blade(+d.u); if (b && G.unsocket(b)) { dirty.relics = 1; afterPower(); U.inspect(b.u); } },
     fuse(d) { if (G.fuseRunes(d.k, +d.t)) { dirty.relics = 1; G.audio.play("drop"); } },
     summon(d) {
-      const n = +d.n;
-      if (n === 10 && !G.unlocked("ten")) return U.toast("Summon 10 unlocks at floor 10.", "#a39279");
+      const n = +d.n, first = G.s.pulls === 0;
+      if (pullLocked()) return;
+      if (n === 10 && !G.unlocked("ten") && !first) return U.toast("Summon 10 unlocks at floor 10.", "#a39279");
       const owned = new Set(G.s.blades.map((b) => b.i));
       const list = G.summon(n); if (!list) return U.toast("Not enough gems.", "#a39279");
       tipDone("summon");
       const isNew = list.map((b) => { const fresh = !owned.has(b.i); owned.add(b.i); return fresh; });
       const best = list.reduce((a, b) => (G.TIER[b.t].rank > G.TIER[a].rank ? b.t : a), "common");
-      // Fill empty team slots straight away so new players see their pull fight.
-      list.forEach((b) => { const i = G.s.party.findIndex((u, k) => u == null && k < G.slotCount()); if (i >= 0) G.equip(b.u, i); });
+      // Later summons drop straight into empty slots; the first one is left for the player to pick.
+      if (!first && G.party.some(Boolean)) list.forEach((b) => { const i = G.s.party.findIndex((u, k) => u == null && k < G.slotCount()); if (i >= 0) G.equip(b.u, i); });
       afterPower();
       U.pull = { list, best, isNew, phase: G.s.set.calm ? "show" : "charge", tell: false, fresh: true }; dirty.summon = 1;
       clearTimeout(U.pullT); clearTimeout(U.pullT2);
@@ -443,7 +493,10 @@
       U.pullT2 = setTimeout(() => { if (U.pull && U.pull.phase === "charge") { U.pull.tell = true; dirty.summon = 1; } }, 650);
       U.pullT = setTimeout(() => A.skipPull(), 1300);
     },
-    skipPull() { if (!U.pull || U.pull.phase !== "charge") return; clearTimeout(U.pullT); clearTimeout(U.pullT2); U.pull.phase = "show"; U.pull.fresh = true; dirty.summon = 1; const r = G.TIER[U.pull.best].rank; G.audio.play("reveal", r); if (r >= 3) G.audio.buzz(60); },
+    skipPull() {
+      if (!U.pull || U.pull.phase !== "charge") return; clearTimeout(U.pullT); clearTimeout(U.pullT2); U.pull.phase = "show"; U.pull.fresh = true; dirty.summon = 1;
+      // Keep the buttons locked until every card has flipped in.
+      const wait = G.s.set.calm ? 0 : 450 + 90 * U.pull.list.length; U.pull.lockUntil = Date.now() + wait; setTimeout(() => { dirty.summon = 1; }, wait + 30); const r = G.TIER[U.pull.best].rank; G.audio.play("reveal", r); if (r >= 3) G.audio.buzz(60); },
     buyStar(d) { if (G.buyStar(d.id)) { dirty.stars = 1; afterPower(); G.audio.play("drop"); } },
     rebirthAsk() {
       const s = G.s, gain = G.emberGain(s.runBest);
@@ -472,6 +525,7 @@
       U.modal(`<button class="iconbtn mclose" data-act="modalClose" aria-label="Close">✕</button><h2>Event candle</h2><p>${s.best < 5 ? "Lights up at floor 5." : p ? `<b style="color:${p.color}">${p.sign}</b> Something arrives within 2 floors.` : `Burns brighter with every floor. ${s.omen.since} floors since the last event; one is certain within 20.`}</p><div class="log">${G.OMENS.map((o) => `<p><b style="color:${o.color}">${o.name}</b> <span class="dim">${o.sign}</span></p>`).join("")}</div>`);
     },
     offlineOk() { U.closeModal(); },
+    openTeam: () => U.open("warband"), openSummon: () => U.openSummon(),
   };
   U.act = A;
 

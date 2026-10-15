@@ -9,7 +9,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="css/game.css?v=4.1" />
+        <link rel="stylesheet" href="css/game.css?v=4.2" />
     </head>
     <body>
         <div id="boot" class="boot">
@@ -41,6 +41,7 @@
                 <section id="center" class="center">
                     <div id="stageWrap" class="stagewrap">
                         <canvas id="stage"></canvas>
+                        <button class="mute" id="muteBtn" data-act="mute" aria-label="Sound on or off" title="Sound on/off">♪</button>
                         <div id="bossBar" class="bossbar" hidden><span id="bossName"></span><div><i id="bossFill"></i></div></div>
                         <div id="status" class="status"></div>
                         <div id="advice" class="advice" hidden></div>
@@ -51,7 +52,7 @@
                         <div id="ctl" class="ctl"></div>
                         <div id="info" class="info"></div>
                         <div id="sheet" class="sheet" hidden>
-                            <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="iconbtn" data-act="close" aria-label="Close">✕</button></div>
+                            <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="iconbtn help" data-act="help" aria-label="How this works">?</button><button class="iconbtn" data-act="close" aria-label="Close">✕</button></div>
                             <div class="sheet-body" id="sheetBody"></div>
                         </div>
                     </div>
@@ -70,17 +71,19 @@
 
             <div id="summon" class="smview" hidden></div>
             <div id="coach" class="coach" hidden></div>
+            <div id="guide" class="guide" hidden></div>
             <div id="modal" class="modal" hidden><div class="modal-card" id="modalCard"></div></div>
         </div>
 
-        <script src="js/data.swords.js?v=4.1"></script>
-        <script src="js/data.monsters.js?v=4.1"></script>
-        <script src="js/data.game.js?v=4.1"></script>
-        <script src="js/state.js?v=4.1"></script>
-        <script src="js/sim.js?v=4.1"></script>
-        <script src="js/render.js?v=4.1"></script>
-        <script src="js/audio.js?v=4.1"></script>
-        <script src="js/ui.js?v=4.1"></script>
-        <script src="js/main.js?v=4.1"></script>
+        <script src="js/data.swords.js?v=4.2"></script>
+        <script src="js/data.monsters.js?v=4.2"></script>
+        <script src="js/data.game.js?v=4.2"></script>
+        <script src="js/state.js?v=4.2"></script>
+        <script src="js/sim.js?v=4.2"></script>
+        <script src="js/render.js?v=4.2"></script>
+        <script src="js/audio.js?v=4.2"></script>
+        <script src="js/ui.js?v=4.2"></script>
+        <script src="js/guide.js?v=4.2"></script>
+        <script src="js/main.js?v=4.2"></script>
     </body>
 </html>

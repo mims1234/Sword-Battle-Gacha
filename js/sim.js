@@ -280,6 +280,7 @@
   G.step = function (dt) {
     const C = G.combat;
     if (!C || G.paused) return;
+    if (!G.party || !G.party.some(Boolean)) return; // nothing fights until the player has a team
     C.t += dt;
     if (G.rift) { G.rift.t -= dt; if (G.rift.t <= 0) { endRift(false); return; } }
     if (C.state === "gap") {

@@ -10,7 +10,7 @@
     try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination); } catch (e) { ctx = null; }
     return !!ctx;
   }
-  A.unlock = function () { if (ensure() && ctx.state === "suspended") ctx.resume(); };
+  A.unlock = function () { if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music()); else A.music(); };
 
   function tone(freq, dur, type, vol, slide, delay) {
     const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
@@ -63,5 +63,76 @@
       case "rebirth": A.play("rebirth"); break;
     }
   };
+  // ---------- area music: slow, calm, a little tense ----------
+  // Each area gets its own key, scale, tempo and instrument; boss floors and blood moons add a heartbeat.
+  const THEMES = {
+    brute: { root: 50, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 72, pad: "triangle", cut: 900, lead: "pluck", density: 0.42 },
+    undead: { root: 49, scale: [0, 1, 3, 5, 7, 8, 10], bpm: 56, pad: "sawtooth", cut: 520, lead: "bell", density: 0.22 },
+    beast: { root: 52, scale: [0, 3, 5, 7, 10], bpm: 76, pad: "sine", cut: 1400, lead: "flute", density: 0.36 },
+    nature: { root: 53, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 64, pad: "sine", cut: 1100, lead: "drop", density: 0.3 },
+    demon: { root: 47, scale: [0, 1, 3, 5, 6, 8, 10], bpm: 60, pad: "sawtooth", cut: 420, lead: "pluck", density: 0.2, pulse: true },
+    dragon: { root: 57, scale: [0, 2, 3, 5, 7, 8, 10], bpm: 58, pad: "triangle", cut: 1800, lead: "bell", density: 0.26 },
+    holy: { root: 55, scale: [0, 2, 3, 5, 7, 9, 10], bpm: 54, pad: "square", cut: 700, lead: "bell", density: 0.24 },
+  };
+  const PROG = [0, 5, 3, 4]; // i, VI, iv, v in scale steps
+  let mus = null, musT = null;
+  const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const deg = (th, d) => { const n = th.scale.length; return th.root + th.scale[((d % n) + n) % n] + 12 * Math.floor(d / n); };
+
+  function voice(th, midi, t, dur, vol) {
+    const o = ctx.createOscillator(), g = ctx.createGain(); let o2 = null;
+    const kind = th.lead;
+    o.type = kind === "flute" ? "sine" : kind === "bell" ? "sine" : "triangle";
+    o.frequency.setValueAtTime(hz(midi), t);
+    if (kind === "flute") { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 5; lg.gain.value = 4; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.1); }
+    if (kind === "bell") { o2 = ctx.createOscillator(); o2.type = "sine"; o2.frequency.setValueAtTime(hz(midi) * 2.76, t); const g2 = ctx.createGain(); g2.gain.setValueAtTime(vol * 0.25, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.5); o2.connect(g2); g2.connect(mus.bus); o2.start(t); o2.stop(t + dur); }
+    if (kind === "drop") o.frequency.exponentialRampToValueAtTime(hz(midi) * 0.98, t + dur);
+    const atk = kind === "flute" ? 0.12 : 0.005;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(mus.bus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function thump(t, vol) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = "sine"; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.25); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3); o.connect(g); g.connect(mus.bus); o.start(t); o.stop(t + 0.35); }
+
+  function makePad(th) {
+    const out = ctx.createGain(), f = ctx.createBiquadFilter(), oscs = [];
+    f.type = "lowpass"; f.frequency.value = th.cut; f.Q.value = 2;
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.07; lg.gain.value = th.cut * 0.35; lfo.connect(lg); lg.connect(f.frequency); lfo.start();
+    [0, 7, 12].forEach((iv, i) => { for (const det of [-6, 6]) { const o = ctx.createOscillator(); o.type = th.pad; o.detune.value = det; o.frequency.value = hz(th.root - 12 + iv); o.connect(f); o.start(); oscs.push({ o, iv }); } });
+    out.gain.value = 0.0001; f.connect(out); out.connect(mus.bus);
+    out.gain.setTargetAtTime(th.pad === "sawtooth" || th.pad === "square" ? 0.05 : 0.09, ctx.currentTime, 1.5);
+    return { out, oscs, lfo, f };
+  }
+  function killPad(p) { if (!p) return; const t = ctx.currentTime; p.out.gain.setTargetAtTime(0.0001, t, 0.8); setTimeout(() => { p.oscs.forEach((x) => { try { x.o.stop(); } catch (e) { /* stopped */ } }); try { p.lfo.stop(); } catch (e) { /* stopped */ } p.out.disconnect(); }, 4000); }
+
+  function schedule() {
+    if (!mus || !mus.th) return;
+    const th = mus.th, spb = 60 / th.bpm, now = ctx.currentTime;
+    while (mus.next < now + 0.4) {
+      const t = mus.next, beat = mus.beat;
+      if (beat % 8 === 0) { const step = PROG[(beat / 8) % PROG.length]; mus.chord = step; mus.pad.oscs.forEach((x) => x.o.frequency.setTargetAtTime(hz(deg(th, step) - 12 + x.iv), t, 0.6)); }
+      if (Math.random() < th.density) { mus.walk = G.clamp(mus.walk + G.pick([-2, -1, 1, 1, 2, 3, -3]), 4, 13); voice(th, deg(th, mus.walk + mus.chord) , t, th.lead === "bell" ? 2.4 : th.lead === "flute" ? spb * 1.6 : 0.9, th.lead === "bell" ? 0.05 : 0.07); }
+      if (beat % 16 === 12 && Math.random() < 0.5) voice(th, deg(th, mus.chord) - 12, t, spb * 3, 0.05);
+      if ((th.pulse || mus.tense) && beat % 2 === 0) thump(t, mus.tense ? 0.16 : 0.08);
+      mus.next += spb; mus.beat++;
+    }
+  }
+  // Called about once a second: start, switch or stop the music to match the current area.
+  A.music = function () {
+    const want = G.s.set.sound && G.s.set.music !== false && ctx && ctx.state === "running";
+    if (!want) { if (mus) { killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; } return; }
+    const f = G.curFloor(), id = G.rift ? "demon" : G.biomeOf(f).id, th = THEMES[id], C = G.combat;
+    const tense = !!((C && C.boss) || G.s.moon > 0 || (C && C.hollow) || G.rift);
+    if (!mus) {
+      const bus = ctx.createGain(), dl = ctx.createDelay(1), fb = ctx.createGain(), wet = ctx.createGain();
+      dl.delayTime.value = 0.38; fb.gain.value = 0.35; wet.gain.value = 0.35;
+      bus.connect(master); bus.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(master);
+      bus.gain.value = 0.55;
+      mus = { bus, th: null, id: null, next: ctx.currentTime + 0.2, beat: 0, walk: 7, chord: 0, tense: false, pad: null };
+      musT = setInterval(schedule, 120);
+    }
+    mus.tense = tense;
+    if (mus.id !== id) { killPad(mus.pad); mus.id = id; mus.th = th; mus.pad = makePad(th); mus.beat = 0; mus.next = Math.max(mus.next, ctx.currentTime + 0.1); }
+  };
+
   A.buzz = function (ms) { if (!G.s.set.calm && navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) { try { navigator.vibrate(ms); } catch (e) { /* unsupported */ } } };
 })();
