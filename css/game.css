@@ -355,3 +355,8 @@ body.wide .band { gap: 10px; padding-top: 10px; }
 .cur b { font-size: 15px; }
 .slot .lv, .slot .pos { font-size: 12px; }
 .lvl b { font-size: 13px; }
+
+/* the loading screen becomes the start screen once the first track can play */
+.boot { cursor: default; }
+.boot.ready { cursor: pointer; }
+.boot.ready p { color: #fff3d6; animation: pulse 1.2s steps(2) infinite; }

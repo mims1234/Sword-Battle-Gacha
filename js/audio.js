@@ -19,7 +19,12 @@
     try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.22; master.connect(ctx.destination); sfxBus = ctx.createGain(); sfxBus.gain.value = A.sfxVol(); sfxBus.connect(master); } catch (e) { ctx = null; }
     return !!ctx;
   }
-  A.unlock = function () { if (!A._pre) { A._pre = 1; A.preloadSfx(); } if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music()); else A.music(); };
+  A.unlock = function () {
+    A._unlocked = true;
+    if (!A._pre) { A._pre = 1; A.preloadSfx(); }
+    if (ensure() && ctx.state === "suspended") ctx.resume().then(() => A.music());
+    A.music(); // right away, inside the tap: some phones only allow play() during the gesture itself
+  };
 
   function tone(freq, dur, type, vol, slide, delay) {
     const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
@@ -194,14 +199,29 @@
       b.currentTime = 0; b.volume = 0; b.play().catch(() => {}); fade(b, recVol(), XF); fade(a, 0, XF); rec.i = 1 - rec.i;
     }
   }
+  // Start downloading the track for where the player is before they tap, so it plays the moment they do.
+  const preEls = {};
+  function currentTrack() {
+    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat, area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id;
+    const tense = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
+    const id = tense && tracks.boss ? "boss" : tracks[area] ? area : null;
+    return id ? { id, src: tracks[id] } : null;
+  }
+  A.preloadMusic = function () {
+    const t = currentTrack(); if (!t || preEls[t.src] || G.s.set.music === false) return null;
+    const a = new Audio(t.src), b = new Audio(t.src); a.preload = b.preload = "auto"; a.load(); b.load(); preEls[t.src] = [a, b];
+    return a;
+  };
   function playRec(id, src) {
     if (rec && rec.id === id) { rec.on = true; return; }
     const old = rec ? rec.els : [];
     old.forEach((el) => fade(el, 0, 1.5));
-    const mk = () => { const el = new Audio(src); el.preload = "auto"; el.volume = 0; return el; };
+    const first = !rec && !old.length, pre = preEls[src] || []; delete preEls[src];
+    const mk = (k) => { const el = pre[k] || new Audio(src); el.preload = "auto"; el.volume = 0; return el; };
     const ducking = performance.now() < duckEnd;
-    rec = { id, els: [mk(), mk()], i: 0, on: true, old, ducked: ducking };
-    if (!ducking) { rec.els[0].play().catch(() => {}); fade(rec.els[0], recVol(), 2.5); }
+    rec = { id, els: [mk(0), mk(1)], i: 0, on: true, old, ducked: ducking };
+    // The very first track comes in quickly so the game opens with music; later area changes cross-fade slowly.
+    if (!ducking) { rec.els[0].play().catch(() => {}); fade(rec.els[0], recVol(), first ? 0.8 : 2.5); }
     if (!recT) recT = setInterval(recTick, 80);
   }
   A.musicState = () => (rec ? { id: rec.id, ducked: !!rec.ducked, paused: rec.els[rec.i].paused, vol: +rec.els[rec.i].volume.toFixed(2), at: +rec.els[rec.i].currentTime.toFixed(1) } : null); // for debugging
@@ -210,13 +230,12 @@
 
   // Called about once a second: start, switch or stop the music to match the current area.
   A.music = function () {
-    const want = G.s.set.music !== false && ctx && ctx.state === "running";
-    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat;
-    const area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id, tense0 = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
-    const recId = tense0 && tracks.boss ? "boss" : tracks[area] ? area : null;
-    if (want && recId) { stopSynth(); playRec(recId, tracks[recId]); return; }
+    // Recorded music only needs the player to have tapped once; the built-in fallback also needs Web Audio running.
+    const want = G.s.set.music !== false && !!A._unlocked;
+    const t = currentTrack();
+    if (want && t) { stopSynth(); playRec(t.id, t.src); return; }
     stopRec();
-    if (!want) { if (mus) { killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; } return; }
+    if (!want || !ctx || ctx.state !== "running") { if (mus) { killPad(mus.pad); mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); const m = mus; setTimeout(() => m.bus.disconnect(), 2000); mus = null; clearInterval(musT); musT = null; } return; }
     const f = G.curFloor(), id = G.rift ? "demon" : G.biomeOf(f).id, th = THEMES[id], C = G.combat;
     const tense = !!((C && C.boss) || G.s.moon > 0 || (C && C.hollow) || G.rift);
     if (!mus) {

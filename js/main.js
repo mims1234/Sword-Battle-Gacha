@@ -51,7 +51,23 @@
       else if (hiddenAt) { const s = (Date.now() - hiddenAt) / 1000; hiddenAt = 0; last = performance.now(); if (s > 20 && !G.paused) away(s, true); }
     });
     window.addEventListener("pagehide", () => { if (!G.noSave) G.save(); });
-    const bootEl = document.getElementById("boot"); setTimeout(() => bootEl.classList.add("out"), 400); setTimeout(() => bootEl.remove(), 1100);
+    // Browsers block sound until the player taps, clicks or presses a key, so the loading screen
+    // waits for that first tap: it starts the music and effects at the same moment the game appears.
+    const bootEl = document.getElementById("boot"), hint = document.getElementById("bootHint");
+    const firstTrack = G.audio.preloadMusic();
+    const ready = () => { if (bootEl.dataset.ready) return; bootEl.dataset.ready = 1; hint.textContent = "Tap anywhere to start"; bootEl.classList.add("ready"); };
+    if (firstTrack) { firstTrack.addEventListener("canplaythrough", ready, { once: true }); setTimeout(ready, 2500); } else setTimeout(ready, 400);
+    G.paused = "boot";
+    const start = (e) => {
+      if (e && e.type === "keydown" && (e.key === "Tab" || e.altKey || e.ctrlKey || e.metaKey)) return;
+      ready(); if (e) { e.preventDefault(); e.stopPropagation(); } // the starting key should not also trigger a shortcut
+      document.removeEventListener("keydown", start, true); bootEl.removeEventListener("pointerup", start);
+      G.audio.unlock(); if (G.paused === "boot") G.paused = null; last = performance.now();
+      bootEl.classList.add("out"); setTimeout(() => bootEl.remove(), 600);
+    };
+    bootEl.addEventListener("pointerup", start); document.addEventListener("keydown", start, true);
+    // Safety net: any later tap or key anywhere also unlocks sound (for example after a refresh in the background).
+    ["pointerdown", "keydown", "touchend"].forEach((t) => document.addEventListener(t, () => { if (!G.audio._unlocked) G.audio.unlock(); }, { capture: true, passive: true }));
     requestAnimationFrame((t) => { last = t; loop(t); });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
