@@ -74,9 +74,19 @@
   }
   // Big moments get the stage to themselves: the music fades out under them and comes back after.
   const DUCK = { reveal_3: 1, reveal_4: 1, summon_charge: 1, boss: 1, boss_down: 1, rebirth: 1, unlock: 1, wipe: 1 };
+  // When the game is served from a website, each effect is decoded once and played straight through
+  // Web Audio: far lighter on phones than keeping dozens of <audio> players. From a local file the
+  // browser blocks that, so <audio> players are used, created only when a sound first plays.
+  const BUF = {};
   function sample(id, rate, vol) {
     const files = (window.SFX_FILES || {})[id]; if (!files || !files.length) return false;
-    const el = playerFor(files[Math.floor(Math.random() * files.length)]);
+    const src = files[Math.floor(Math.random() * files.length)], buf = BUF[src];
+    if (buf && ctx && ctx.state === "running") {
+      const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.playbackRate.value = rate; g.gain.value = Math.min(1, vol); s.connect(g); g.connect(sfxBus); s.start();
+      if (DUCK[id]) A.duck(buf.duration / rate + 0.3);
+      return true;
+    }
+    const el = playerFor(src);
     try { el.currentTime = 0; } catch (e) { /* not loaded yet */ }
     el.preservesPitch = el.mozPreservesPitch = el.webkitPreservesPitch = false;
     el.playbackRate = rate; el.volume = Math.min(1, vol * A.sfxVol());
@@ -84,11 +94,18 @@
     if (DUCK[id]) A.duck((isFinite(el.duration) && el.duration > 0 ? el.duration : 3) + 0.3);
     return true;
   }
-  A.preloadSfx = function () { const f = window.SFX_FILES || {}; Object.keys(f).forEach((id) => f[id].forEach((src) => { if (!pools[src]) playerFor(src); })); };
+  A.preloadSfx = function () {
+    if (!/^https?:/.test(location.protocol) || !ensure()) return;
+    const f = window.SFX_FILES || {};
+    Object.keys(f).forEach((id) => f[id].forEach((src) => {
+      if (BUF[src]) return;
+      fetch(src).then((r) => r.arrayBuffer()).then((ab) => ctx.decodeAudioData(ab)).then((b) => (BUF[src] = b)).catch(() => {});
+    }));
+  };
 
   A.play = function (name, arg) {
     if (!G.s.set.sound) return;
-    if (name === "hit" || name === "crit") { const n = performance.now(); if (n - lastHit < 70) return; lastHit = n; }
+    if (name === "hit" || name === "crit") { const n = performance.now(); if (n - lastHit < ((G.s.set.gfx || "low") === "low" ? 110 : 70)) return; lastHit = n; }
     let rec = name === "reveal" ? (arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1") : SFX_MAP[name];
     // Strikes sound like the blade that made them: each element has its own family of hits.
     if (name === "hit" || name === "crit") { const k = name + "_" + (arg || "steel"); rec = (window.SFX_FILES || {})[k] ? k : name + "_steel"; }

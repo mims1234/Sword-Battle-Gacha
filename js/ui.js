@@ -71,12 +71,14 @@
 
   function renderPanels() {
     const all = dirty.all;
-    if (wide) { if (all || dirty.warband) $("left").innerHTML = `<h2 class="dock-h">Team</h2>` + pTeam(); if (all || dirty.journal) $("right").innerHTML = `<h2 class="dock-h">Quests</h2>` + pQuests(); }
+    const docksHidden = wide && !$("summon").hidden, keep = {};
+    if (docksHidden) { if (all || dirty.warband) keep.warband = 1; if (all || dirty.journal) keep.journal = 1; } // rebuilt after the summon screen closes
+    else if (wide) { if (all || dirty.warband) $("left").innerHTML = `<h2 class="dock-h">Team</h2>` + pTeam(); if (all || dirty.journal) $("right").innerHTML = `<h2 class="dock-h">Quests</h2>` + pQuests(); }
     if (open && (all || dirty[open])) { const body = $("sheetBody"), y = body.scrollTop; body.innerHTML = PANELS[open].fn(); body.scrollTop = y; }
     if (!$("summon").hidden && (all || dirty.summon)) renderSummon();
     if (all || dirty.band) { buildBand(); lastHud = 0; }
     if (all || dirty.nav) $("deskNav").innerHTML = NAV.map((p) => `<button data-act="open" data-p="${p}" class="${navLock(p) ? "locked" : ""}">${navTitle(p)}</button>`).join("");
-    dirty = {};
+    dirty = keep;
   }
 
   // ----- blade bits -----
@@ -161,7 +163,8 @@
     };
     const res = G.res.list.length ? G.res.list.map((r) => `<div class="res"><i class="eldot" style="background:${G.EL[r.el].color}"></i><b>${G.EL[r.el].label} ×${r.n}:</b> ${r.full ? "+25% damage. " + G.EL[r.el].trait + "." : "+10% damage. Add one more for a bonus power."}</div>`).join("") : `<div class="res dim">Element bonus: use 2 blades of the same element for +10% damage, 3 for a special power.</div>`;
     const fam = G.biomeOf(G.curFloor()).id, weak = Object.keys(G.EL).filter((e) => G.EL[e].counter.includes(fam));
-    const bench = s.blades.slice().sort((a, z) => G.TIER[z.t].rank - G.TIER[a.t].rank || G.power(z) - G.power(a));
+    const pw = new Map(s.blades.map((b) => [b.u, G.power(b)]));
+    const bench = s.blades.slice().sort((a, z) => G.TIER[z.t].rank - G.TIER[a.t].rank || pw.get(z.u) - pw.get(a.u));
     const cur = pickSlot != null ? G.blade(s.party[pickSlot]) : null;
     const tiles = bench.slice(0, 150).map((b) => {
       let x = "";
@@ -188,7 +191,7 @@
     } else stage = `<div class="sm-stage idle"><div class="altar"><div class="ring"></div><div class="gemfloat"></div><div class="plinth"></div></div></div>`;
     // Summon 10 is open for the very first summon so new players start with a full choice of blades.
     const busy = pullLocked(), ten10 = ten || s.pulls === 0;
-    $("summon").innerHTML = `<div class="sm-head"><button class="iconbtn" data-act="closeSummon" aria-label="Back">←</button><h2>Summon</h2><span class="sm-gems">${GEM}<b>${G.fmt(s.sigils)}</b></span><button class="iconbtn help" data-act="help" data-p="forge" aria-label="How summoning works">?</button></div>
+    $("summon").innerHTML = `<div class="sm-head"><button class="iconbtn" data-act="closeSummon" aria-label="Back">←</button><h2>Summon</h2><span class="sm-gems">${GEM}<b id="smGemsN">${G.fmt(s.sigils)}</b></span><button class="iconbtn help" data-act="help" data-p="forge" aria-label="How summoning works">?</button></div>
       <div class="sm-body">
         <div class="banner" style="--ec:${G.EL[el].color}"><b>This week: more ${G.EL[el].label} blades</b><span>Half of your summons come from the ${G.EL[el].label} pool.</span></div>
         ${stage}
@@ -304,7 +307,7 @@
   function slider(k, label) { const v = Math.round((k === "musicVol" ? G.audio.musicVol() : G.audio.sfxVol()) * 100); return `<label class="volrow" for="vol_${k}"><span>${label}</span><input type="range" min="0" max="100" step="5" id="vol_${k}" data-vol="${k}" value="${v}"><b id="volv_${k}">${v}%</b></label>`; }
   function pSettings() {
     const s = G.s, t = (k, label, hint) => `<div class="claimrow"><span><b>${label}</b><small>${hint}</small></span><button class="btn${s.set[k] ? " gold" : ""}" data-act="set" data-k="${k}">${s.set[k] ? "On" : "Off"}</button></div>`;
-    return t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + slider("musicVol", "Music volume") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + slider("sfxVol", "Effects volume") + `<p class="hint">Starts at music 90% and effects 30%, so the music carries the game and effects only tell you something happened.</p>` + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
+    return `<div class="claimrow"><span><b>Graphics</b><small>Low runs best on older phones. Medium and High add lighting, weather, more particles and richer animations. Gameplay is the same on every level.</small></span><div class="seg" role="group" aria-label="Graphics quality">${["low", "medium", "high"].map((q) => `<button class="btn${(s.set.gfx || "low") === q ? " gold" : ""}" data-act="gfx" data-q="${q}" aria-pressed="${(s.set.gfx || "low") === q}">${q[0].toUpperCase() + q.slice(1)}</button>`).join("")}</div></div>` + t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + slider("musicVol", "Music volume") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + slider("sfxVol", "Effects volume") + `<p class="hint">Starts at music 90% and effects 30%, so the music carries the game and effects only tell you something happened.</p>` + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
       `<h3>Stats</h3><div class="log"><p>Best floor ${s.best} · ${G.fmt(s.kills)} monsters defeated · ${s.pulls} summons</p><p>${s.rebirths} rebirths · ${s.stat.wipes} defeats · ${s.secrets} secrets found</p><p>${G.fmt(s.stat.dmg)} total damage · ${G.fmtTime(s.stat.online)} played</p></div>
       <h3>Save</h3><div class="rowbtns"><button class="btn" data-act="export">Copy save code</button><button class="btn" data-act="importAsk">Load save code</button><button class="btn danger" data-act="resetAsk">Delete save</button></div>
       <p class="hint">Idle Blade Master ${G.VERSION}. Keyboard: 1–5 cast ultimates, Space pauses, L levels up, S opens Summon.</p>`;
@@ -356,7 +359,7 @@
     const la = $("lvlAll");
     if (la) {
       la.classList.toggle("dimmed", s.souls < cheapest); setText("spdBtn", s.set.speed + "x"); setText("pauseBtn", G.paused === "user" ? "▶" : "❚❚");
-      setText("sumGems", G.fmt(s.sigils)); $("sumBtn").classList.toggle("glow", s.sigils >= 1);
+      setText("sumGems", G.fmt(s.sigils)); setText("smGemsN", G.fmt(s.sigils)); $("sumBtn").classList.toggle("glow", s.sigils >= 1);
     }
     const boss = C && C.state === "fight" && C.enemies.find((e) => (e.kind === "boss" || e.kind === "hollow") && e.hp > 0);
     $("bossBar").hidden = !boss; if (boss) { setText("bossName", boss.name); $("bossFill").style.width = (boss.hp / boss.max) * 100 + "%"; }
@@ -392,8 +395,9 @@
   let slow = 0;
   U.slowTick = function () {
     if (open === "exp" || open === "rift") dirty[open] = 1;
-    if (!$("summon").hidden && !U.pull) dirty.summon = 1;
-    if (++slow % 3 === 0) { dirty.journal = 1; if (wide) dirty.warband = 1; }
+    if (!$("summon").hidden && !U.pull) { const s = G.s, k = [s.sigils >= 1, s.sigils >= 10, Math.floor(s.sigils), s.pity, s.boon, Date.now() < s.star ? Math.floor((s.star - Date.now()) / 1000) : 0].join("|"); if (k !== U.sumKey) { U.sumKey = k; dirty.summon = 1; } }
+    if (++slow % 3 === 0) dirty.journal = 1;
+    gfxHint();
   };
 
   // ---------- sim events ----------
@@ -527,6 +531,8 @@
       U.modal(`<button class="iconbtn mclose" data-act="modalClose" aria-label="Close">✕</button><h2>Event candle</h2><p>${s.best < 5 ? "Lights up at floor 5." : p ? `<b style="color:${p.color}">${p.sign}</b> Something arrives within 2 floors.` : `Burns brighter with every floor. ${s.omen.since} floors since the last event; one is certain within 20.`}</p><div class="log">${G.OMENS.map((o) => `<p><b style="color:${o.color}">${o.name}</b> <span class="dim">${o.sign}</span></p>`).join("")}</div>`);
     },
     offlineOk() { U.closeModal(); },
+    gfx(d) { G.s.set.gfx = d.q; applyGfx(); dirty.settings = 1; U.toast("Graphics: " + d.q[0].toUpperCase() + d.q.slice(1), "#a8977d"); },
+    gfxHintOk() { $("advice").hidden = true; U.open("settings"); },
     openTeam: () => U.open("warband"), openSummon: () => U.openSummon(),
   };
   U.act = A;
@@ -538,10 +544,21 @@
   };
 
   // ---------- wiring ----------
+  // Graphics level: the body class switches heavy menu animations; the renderer reads the same setting.
+  function applyGfx() { const q = G.s.set.gfx || "low"; document.body.classList.remove("gfx-low", "gfx-medium", "gfx-high"); document.body.classList.add("gfx-" + q); }
+  U.applyGfx = applyGfx;
+  // After two minutes on Low, if frames are coming smoothly, suggest a higher level once.
+  function gfxHint() {
+    const s = G.s; if (!s.tips) s.tips = {};
+    if (s.tips.gfxHint || (s.set.gfx || "low") !== "low" || s.stat.online < 120 || !(G.frameEma < 19) || G.paused || !$("advice").hidden) return;
+    s.tips.gfxHint = 1;
+    const el = $("advice"); el.hidden = false;
+    el.innerHTML = `<span><b style="color:var(--green)">Running smoothly!</b> Your device can handle more: try Medium or High graphics for lighting, weather and richer effects.</span><button class="btn gold" data-act="gfxHintOk">Settings</button><button class="iconbtn" data-act="hideAdvice" aria-label="Dismiss">✕</button>`;
+  }
   U.init = function () {
     const mq = window.matchMedia("(min-width: 1000px)");
     const setWide = () => { wide = mq.matches; document.body.classList.toggle("wide", wide); if (wide && (open === "warband" || open === "journal")) U.close(); dirty.all = 1; };
-    mq.addEventListener ? mq.addEventListener("change", setWide) : mq.addListener(setWide); setWide();
+    mq.addEventListener ? mq.addEventListener("change", setWide) : mq.addListener(setWide); setWide(); applyGfx();
     document.addEventListener("click", (e) => {
       const t = e.target.closest("[data-act]"); if (!t || t.disabled) return;
       G.audio.unlock();

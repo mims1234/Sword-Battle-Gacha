@@ -360,3 +360,22 @@ body.wide .band { gap: 10px; padding-top: 10px; }
 .boot { cursor: default; }
 .boot.ready { cursor: pointer; }
 .boot.ready p { color: #fff3d6; animation: pulse 1.2s steps(2) infinite; }
+
+/* ---------- graphics levels (visual only) ---------- */
+.altar .ring, .sm-stage .rays, .altar .gemfloat { will-change: transform; }
+.seg { display: flex; gap: 4px; flex: none; } .seg .btn { padding: 8px 10px; font-size: 13px; }
+/* Medium: drop the biggest effect, the spinning light rays */
+.gfx-medium .sm-stage .rays { display: none; }
+/* Low: no continuous menu animations, no glow filters, simple card reveal */
+.gfx-low .sm-stage .rays { display: none; }
+.gfx-low .altar .ring, .gfx-low .boot-mark, .gfx-low .slot.ready, .gfx-low .door .arch, .gfx-low .coach, .gfx-low .btn.summon.glow,
+.gfx-low .gspot, .gfx-low .tabs em, .gfx-low .mdot, .gfx-low .omen .flame, .gfx-low .gdrag, .gfx-low .boot.ready p { animation: none; }
+.gfx-low .altar .gemfloat { animation: none; box-shadow: 0 0 0 3px #000, 0 0 16px var(--rc); }
+.gfx-low .sm-stage.charging .gemfloat { animation: shake .12s steps(2) infinite; }
+.gfx-low .altar .ring, .gfx-low .slot .sw, .gfx-low .fslot .sw, .gfx-low .pcard .sw, .gfx-low .bcard .sw.big, .gfx-low .mi .mi-sprite, .gfx-low .omen .flame { filter: none; }
+.gfx-low .pcard { box-shadow: inset 0 0 0 2px var(--tc), inset 0 0 0 3px #000, 0 3px 0 #000; }
+.gfx-low .pcard.anim { animation: lowIn .25s ease-out backwards; }
+@keyframes lowIn { from { opacity: 0; transform: translateY(6px); } }
+.gfx-low .slot.ready { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #000, 0 3px 0 #000; }
+.gfx-low .lower { background-image: none; }
+.gfx-low .gdrag { left: var(--x1); top: var(--y1); }

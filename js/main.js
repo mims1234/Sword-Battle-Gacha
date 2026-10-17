@@ -18,6 +18,7 @@
 
   function loop(now) {
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    G.frameEma = (G.frameEma || 16) * 0.97 + Math.min(100, dt * 1000) * 0.03; // smoothness check for the graphics suggestion
     if (G.render.stop > 0) G.render.stop -= dt;
     else { let t = dt * G.s.set.speed; while (t > 0) { const h = Math.min(0.05, t); G.step(h); t -= h; } }
     if (!G.paused) G.onlineTick(dt);

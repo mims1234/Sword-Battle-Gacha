@@ -269,9 +269,25 @@
   }
 
   // ---------- fx ----------
-  function burst(x, y, col, n, sp, gr) { if (parts.length > 300) return; for (let i = 0; i < n; i++) { const a = rnd(0, 6.28), v = rnd(0.3, 1) * sp; parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 14, l: rnd(0.3, 0.8), col, g: gr == null ? 120 : gr }); } }
+  function burst(x, y, col, n, sp, gr) { if (parts.length > Q().parts) return; if (Q().parts < 150) n = Math.ceil(n / 2); for (let i = 0; i < n; i++) { const a = rnd(0, 6.28), v = rnd(0.3, 1) * sp; parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 14, l: rnd(0.3, 0.8), col, g: gr == null ? 120 : gr }); } }
   function num(x, y, text, col, big) { nums.push({ x: x + rnd(-6, 6), y, t: 0, s: text, col, big }); if (nums.length > 36) nums.shift(); }
-  function glow(x, y, r, col, a) { if (a <= 0.01) return; const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, "rgba(0,0,0,0)"); c.globalAlpha = Math.min(1, a); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }
+  // Glows are drawn once per colour into a small sprite and reused, instead of building a new
+  // gradient for every glow on every frame. The picture is the same; the cost is a fraction.
+  const GLOWS = {};
+  function glowSprite(col) {
+    let s = GLOWS[col]; if (s) return s;
+    s = mk(64, 64); const g2 = s.getContext("2d"), gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, col); gr.addColorStop(1, "rgba(0,0,0,0)"); g2.fillStyle = gr; g2.fillRect(0, 0, 64, 64);
+    return (GLOWS[col] = s);
+  }
+  function glow(x, y, r, col, a) { if (a <= 0.01 || r < 1) return; c.globalAlpha = Math.min(1, a); c.imageSmoothingEnabled = true; c.drawImage(glowSprite(col), x - r, y - r, r * 2, r * 2); c.imageSmoothingEnabled = false; c.globalAlpha = 1; }
+  // Graphics levels change only what is drawn, never what happens in the game.
+  const QUALITY = {
+    low: { fps: 30, parts: 90, weather: false, aura: false, lights: false, orbGlow: false },
+    medium: { fps: 60, parts: 180, weather: true, aura: false, lights: true, orbGlow: true },
+    high: { fps: 60, parts: 320, weather: true, aura: true, lights: true, orbGlow: true },
+  };
+  const Q = () => QUALITY[G.s.set.gfx] || QUALITY.low;
   function tinted(img, sx, sy, col, a) { fc.globalCompositeOperation = "source-over"; fc.globalAlpha = 1; fc.clearRect(0, 0, 32, 32); fc.drawImage(img, sx, sy, 32, 32, 0, 0, 32, 32); fc.globalCompositeOperation = "source-atop"; fc.globalAlpha = a; fc.fillStyle = col; fc.fillRect(0, 0, 32, 32); return fl; }
   function sprite(img, sx, sy, x, y, s, a, flip) { const w = 32 * s; c.globalAlpha = a == null ? 1 : a; if (flip) { c.save(); c.translate(rd(x), 0); c.scale(-1, 1); c.drawImage(img, sx, sy, 32, 32, rd(-w / 2), rd(y - w / 2), w, w); c.restore(); } else c.drawImage(img, sx, sy, 32, 32, rd(x - w / 2), rd(y - w / 2), w, w); c.globalAlpha = 1; }
   function text(s, x, y, col, size, align) {
@@ -374,7 +390,7 @@
       const bob = Math.round(Math.sin(T * 2.2 + b.ph) * 2);
       b.x = b.bx + (b.tx - b.bx) * go; b.y = b.by + bob * (1 - go) + (b.ty - b.by) * go;
       const cb = C && C.blades[i]; b.dead = !!(cb && cb.dead); b.hp = cb ? cb.hp / cb.max : 1;
-      const au = auraT <= 0 && !b.dead && auraOf(p.b);
+      const au = Q().aura && auraT <= 0 && !b.dead && auraOf(p.b);
       if (au && parts.length < 260) parts.push({ x: b.x + rnd(-6, 6), y: b.y + rnd(-8, 8), vx: -8, vy: -10, l: 0.6, col: au, g: -10 });
     }
     if (auraT <= 0) auraT = 0.12;
@@ -445,7 +461,7 @@
     const o45 = off(0.45);
     const dk = c.createLinearGradient(0, 0, 0, YG); dk.addColorStop(0, "rgba(0,0,0,.35)"); dk.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = dk; c.fillRect(0, 0, W, YG);
     c.globalCompositeOperation = "lighter";
-    scene.lights.forEach((L) => { for (const base of [o45, o45 + SW]) { const x = L.x + base; if (x < -40 || x > W + 40) continue; const fl2 = 0.8 + Math.sin(T * 9 + L.x) * 0.1 + Math.sin(T * 23 + L.y) * 0.08; glow(x, L.y, L.r, L.kind === "torch" || L.kind === "fire" ? tcol : L.col, (hollow ? 0.06 : L.kind === "wisp" ? 0.35 + Math.sin(T * 2 + L.x) * 0.2 : 0.3) * fl2); } });
+    if (Q().lights) scene.lights.forEach((L) => { for (const base of [o45, o45 + SW]) { const x = L.x + base; if (x < -40 || x > W + 40) continue; const fl2 = 0.8 + Math.sin(T * 9 + L.x) * 0.1 + Math.sin(T * 23 + L.y) * 0.08; glow(x, L.y, L.r, L.kind === "torch" || L.kind === "fire" ? tcol : L.col, (hollow ? 0.06 : L.kind === "wisp" ? 0.35 + Math.sin(T * 2 + L.x) * 0.2 : 0.3) * fl2); } });
     if (scene.cracks.length) { const a = 0.35 + Math.sin(T * 2) * 0.25; c.fillStyle = rgba(p.lava2, a); scene.cracks.forEach((pts) => pts.forEach((q) => { for (const base of [o45, o45 + SW]) c.fillRect(rd(q[0] + base), q[1], 1, 2); })); }
     scene.windows.forEach((wn) => { for (const base of [o45, o45 + SW]) { const x = wn.x + base; if (x < -60 || x > W + 60) continue; glow(x, wn.y, 34, "#ffe9b0", 0.22); c.fillStyle = "rgba(255,240,190,.06)"; c.beginPath(); c.moveTo(x - 10, wn.y - 26); c.lineTo(x + 10, wn.y - 26); c.lineTo(x + 40, H); c.lineTo(x + 6, H); c.fill(); } });
     c.globalCompositeOperation = "source-over";
@@ -484,7 +500,7 @@
         const v = e.v, a = v.dying ? Math.max(0, 1 - v.dying) : 1, S2 = v.s, h = 16 * S2, x = rd(v.x + v.hit * 2 - v.bump * 5), y = rd(v.y - (v.dying ? v.dying * 6 : 0) + (v.age % 1 < 0.5 ? 0 : 1));
         shadow(v.x, v.y + h - 2, h * 1.1);
         if (v.kind === "champ" || v.kind === "boss") { c.globalCompositeOperation = "lighter"; glow(v.x, v.y, h * 1.4, v.kind === "boss" ? "#ff3a2a" : "#ff8a2a", (0.25 + Math.sin(T * 5) * 0.06) * a); c.globalCompositeOperation = "source-over"; }
-        if (v.kind === "gild" || v.kind === "imp") { c.globalCompositeOperation = "lighter"; glow(v.x, v.y, h * 1.3, "#ffd24a", 0.35 * a); c.globalCompositeOperation = "source-over"; if (Math.random() < 0.2) parts.push({ x: v.x + rnd(-h, h) * 0.6, y: v.y + rnd(-h, h) * 0.6, vx: 0, vy: -8, l: 0.5, col: "#fff2a8", g: 0 }); }
+        if (v.kind === "gild" || v.kind === "imp") { c.globalCompositeOperation = "lighter"; glow(v.x, v.y, h * 1.3, "#ffd24a", 0.35 * a); c.globalCompositeOperation = "source-over"; if (Math.random() < 0.2 && parts.length < Q().parts) parts.push({ x: v.x + rnd(-h, h) * 0.6, y: v.y + rnd(-h, h) * 0.6, vx: 0, vy: -8, l: 0.5, col: "#fff2a8", g: 0 }); }
         if (v.kind === "hollow") {
           const i = v.sw, qx = (i % 6) * 32, qy = Math.floor(i / 6) * 32;
           c.globalCompositeOperation = "lighter"; glow(x, y, 40, "#8fa3c8", 0.35); c.globalCompositeOperation = "source-over";
@@ -513,12 +529,12 @@
     c.globalAlpha = 1;
     parts.forEach((q) => { c.globalAlpha = Math.min(1, q.l * 2.5); c.fillStyle = q.col; c.fillRect(rd(q.x), rd(q.y), 1, 1); });
     c.globalAlpha = 1;
-    orbs.forEach((o) => { glow(o.x, o.y, 5, "#ffd24a", 0.8); c.fillStyle = "#fff6c8"; c.fillRect(rd(o.x), rd(o.y), 1, 1); });
+    orbs.forEach((o) => { if (Q().orbGlow) glow(o.x, o.y, 5, "#ffd24a", 0.8); c.fillStyle = "#fff6c8"; c.fillRect(rd(o.x), rd(o.y), 1, 1); });
     c.globalCompositeOperation = "source-over";
     strip(scene.strips.fg, 1.3);
     const wt = p.weather, wcol = s.moon > 0 ? "#ff5a4a" : wt === "ash" ? "#9aa0a8" : wt === "snow" ? "#f0f8ff" : wt === "fireflies" ? "#e0ff8a" : wt === "spores" ? "#7affc8" : wt === "motes" ? "#fff0b0" : wt === "dust" ? "#c8a878" : "#ff9a4a";
     c.fillStyle = wcol;
-    weather.forEach((e) => { c.globalAlpha = wt === "fireflies" ? Math.max(0, Math.sin(T * 2 + e.p * 3)) : wt === "dust" ? 0.25 : 0.35 + Math.sin(T * 3 + e.p) * 0.25; c.fillRect(rd(e.x), rd(e.y), 1, 1); });
+    if (Q().weather) weather.forEach((e) => { c.globalAlpha = wt === "fireflies" ? Math.max(0, Math.sin(T * 2 + e.p * 3)) : wt === "dust" ? 0.25 : 0.35 + Math.sin(T * 3 + e.p) * 0.25; c.fillRect(rd(e.x), rd(e.y), 1, 1); });
     c.globalAlpha = 1;
     nums.forEach((n) => { const q = n.t / 0.9, y = n.y - 18 * (1 - Math.pow(1 - q, 2)); c.globalAlpha = q > 0.7 ? (1 - q) / 0.3 : 1; text(n.s, rd(n.x), rd(y), n.col, n.big ? 16 : 8); });
     c.globalAlpha = 1;
@@ -538,5 +554,11 @@
     window.addEventListener("resize", R.resize);
     if (window.ResizeObserver) new ResizeObserver(R.resize).observe(cv);
   };
-  R.frame = function (dt) { if (!cv || R.ready < 2) return; update(dt); draw(); };
+  let pending = 0;
+  R.frame = function (dt) {
+    if (!cv || R.ready < 2) return;
+    pending += dt;
+    if (pending < 1 / Q().fps - 0.004) return;
+    update(Math.min(0.1, pending)); pending = 0; draw();
+  };
 })();
