@@ -532,6 +532,8 @@
     },
     offlineOk() { U.closeModal(); },
     gfx(d) { G.s.set.gfx = d.q; applyGfx(); dirty.settings = 1; U.toast("Graphics: " + d.q[0].toUpperCase() + d.q.slice(1), "#a8977d"); },
+    gfxCycle() { const order = ["low", "medium", "high"], q = order[(order.indexOf(G.s.set.gfx || "low") + 1) % 3]; G.s.set.gfx = q; applyGfx(); dirty.settings = 1; U.toast("Graphics: " + q[0].toUpperCase() + q.slice(1) + (q === "high" ? ". Full lighting, weather and effects." : q === "low" ? ". Smoothest on older phones." : ". Tap again for High."), "#a8977d"); },
+    gfxLower() { $("advice").hidden = true; const q = G.s.set.gfx === "high" ? "medium" : "low"; G.s.set.gfx = q; applyGfx(); dirty.settings = 1; U.toast("Graphics: " + q[0].toUpperCase() + q.slice(1), "#a8977d"); },
     gfxHintOk() { $("advice").hidden = true; U.open("settings"); },
     openTeam: () => U.open("warband"), openSummon: () => U.openSummon(),
   };
@@ -545,12 +547,18 @@
 
   // ---------- wiring ----------
   // Graphics level: the body class switches heavy menu animations; the renderer reads the same setting.
-  function applyGfx() { const q = G.s.set.gfx || "low"; document.body.classList.remove("gfx-low", "gfx-medium", "gfx-high"); document.body.classList.add("gfx-" + q); }
+  function applyGfx() { const q = G.s.set.gfx || "low"; document.body.classList.remove("gfx-low", "gfx-medium", "gfx-high"); document.body.classList.add("gfx-" + q); const b = $("gfxBtn"); if (b) { b.textContent = { low: "LO", medium: "MED", high: "HI" }[q]; b.dataset.q = q; } }
   U.applyGfx = applyGfx;
   // After two minutes on Low, if frames are coming smoothly, suggest a higher level once.
   function gfxHint() {
     const s = G.s; if (!s.tips) s.tips = {};
-    if (s.tips.gfxHint || (s.set.gfx || "low") !== "low" || s.stat.online < 120 || !(G.frameEma < 19) || G.paused || !$("advice").hidden) return;
+    const q = s.set.gfx || "low";
+    if (q !== "low" && !s.tips.gfxSlow && s.stat.online > 60 && G.frameEma > 28 && !G.paused && $("advice").hidden) {
+      s.tips.gfxSlow = 1; const el = $("advice"); el.hidden = false;
+      el.innerHTML = `<span><b style="color:var(--amber)">Feeling slow?</b> Lower graphics keep the game smooth. Gameplay stays exactly the same.</span><button class="btn gold" data-act="gfxLower">Lower</button><button class="iconbtn" data-act="hideAdvice" aria-label="Dismiss">✕</button>`;
+      return;
+    }
+    if (s.tips.gfxHint || q !== "low" || s.stat.online < 120 || !(G.frameEma < 19) || G.paused || !$("advice").hidden) return;
     s.tips.gfxHint = 1;
     const el = $("advice"); el.hidden = false;
     el.innerHTML = `<span><b style="color:var(--green)">Running smoothly!</b> Your device can handle more: try Medium or High graphics for lighting, weather and richer effects.</span><button class="btn gold" data-act="gfxHintOk">Settings</button><button class="iconbtn" data-act="hideAdvice" aria-label="Dismiss">✕</button>`;

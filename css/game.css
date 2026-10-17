@@ -379,3 +379,8 @@ body.wide .band { gap: 10px; padding-top: 10px; }
 .gfx-low .slot.ready { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #000, 0 3px 0 #000; }
 .gfx-low .lower { background-image: none; }
 .gfx-low .gdrag { left: var(--x1); top: var(--y1); }
+
+/* graphics quick toggle in the arena and the note on the start screen */
+.mute.gfxb { width: auto; min-width: 38px; padding: 0 6px; font: 700 12px var(--num, var(--px)); letter-spacing: .04em; }
+.mute.gfxb[data-q="high"] { color: var(--gold); } .mute.gfxb[data-q="medium"] { color: var(--gem); } .mute.gfxb[data-q="low"] { color: var(--dim); }
+.bootgfx { margin-top: 10px; max-width: 320px; text-align: center; font: 500 13px var(--body); color: var(--dim); line-height: 1.35; padding-inline: 16px; }

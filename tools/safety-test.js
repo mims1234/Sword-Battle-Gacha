@@ -44,7 +44,7 @@ ok(s.log[0].c === "", "log colour stripped");
 ok(s.path.name === "Gilded Vault", "path name comes from game data");
 ok(s.con.might === 25 && !s.con.bogus, "rebirth upgrades clamped");
 // musicVol 7 is clamped to 1, then the one-time volume update (no volVer in this save) sets the 90% default
-ok(s.set.speed === 3 && s.set.gfx === "low" && s.set.musicVol === 0.9 && s.set.sfxVol === 0.3, "settings clamped " + JSON.stringify([s.set.speed, s.set.gfx, s.set.musicVol, s.set.sfxVol]));
+ok(s.set.speed === 3 && s.set.gfx === G.deviceGfx() && s.set.musicVol === 0.9 && s.set.sfxVol === 0.3, "settings clamped " + JSON.stringify([s.set.speed, s.set.gfx, s.set.musicVol, s.set.sfxVol]));
 ok(s.omen.pend === null, "unknown event cleared");
 ok(s.exp.length === 1 && s.exp[0].h === 1, "missions coerced");
 ok(s.bounty === null || s.bounty.day === G.day(), "quests reset");

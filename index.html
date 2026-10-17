@@ -10,13 +10,14 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="css/game.css?v=4.14" />
+        <link rel="stylesheet" href="css/game.css?v=4.15" />
     </head>
     <body>
         <div id="boot" class="boot">
             <div class="boot-mark">ᛟ</div>
             <h1>Idle Blade Master</h1>
             <p id="bootHint">Loading the dungeon</p>
+            <small id="bootGfx" class="bootgfx"></small>
         </div>
 
         <div id="app" class="app">
@@ -42,7 +43,7 @@
                 <section id="center" class="center">
                     <div id="stageWrap" class="stagewrap">
                         <canvas id="stage"></canvas>
-                        <div class="mutes"><button class="mute" id="musicBtn" data-act="muteMusic" aria-label="Music on or off" title="Music on/off">♪</button><button class="mute" id="sfxBtn" data-act="muteSfx" aria-label="Sound effects on or off" title="Sound effects on/off">FX</button><button class="mute" data-act="open" data-p="settings" aria-label="Volume settings" title="Volume settings">⚙</button></div>
+                        <div class="mutes"><button class="mute" id="musicBtn" data-act="muteMusic" aria-label="Music on or off" title="Music on/off">♪</button><button class="mute" id="sfxBtn" data-act="muteSfx" aria-label="Sound effects on or off" title="Sound effects on/off">FX</button><button class="mute" data-act="open" data-p="settings" aria-label="Volume settings" title="Volume settings">⚙</button><button class="mute gfxb" id="gfxBtn" data-act="gfxCycle" aria-label="Graphics quality: tap to change" title="Graphics quality: tap to change">HI</button></div>
                         <div id="bossBar" class="bossbar" hidden><span id="bossName"></span><div><i id="bossFill"></i></div></div>
                         <div id="status" class="status"></div>
                         <div id="advice" class="advice" hidden></div>
@@ -76,17 +77,17 @@
             <div id="modal" class="modal" hidden><div class="modal-card" id="modalCard"></div></div>
         </div>
 
-        <script src="js/data.swords.js?v=4.14"></script>
-        <script src="js/data.monsters.js?v=4.14"></script>
-        <script src="js/data.game.js?v=4.14"></script>
-        <script src="js/state.js?v=4.14"></script>
-        <script src="js/sim.js?v=4.14"></script>
-        <script src="js/render.js?v=4.14"></script>
-        <script src="assets/music/tracks.js?v=4.14"></script>
-        <script src="assets/sfx/sfx.js?v=4.14"></script>
-        <script src="js/audio.js?v=4.14"></script>
-        <script src="js/ui.js?v=4.14"></script>
-        <script src="js/guide.js?v=4.14"></script>
-        <script src="js/main.js?v=4.14"></script>
+        <script src="js/data.swords.js?v=4.15"></script>
+        <script src="js/data.monsters.js?v=4.15"></script>
+        <script src="js/data.game.js?v=4.15"></script>
+        <script src="js/state.js?v=4.15"></script>
+        <script src="js/sim.js?v=4.15"></script>
+        <script src="js/render.js?v=4.15"></script>
+        <script src="assets/music/tracks.js?v=4.15"></script>
+        <script src="assets/sfx/sfx.js?v=4.15"></script>
+        <script src="js/audio.js?v=4.15"></script>
+        <script src="js/ui.js?v=4.15"></script>
+        <script src="js/guide.js?v=4.15"></script>
+        <script src="js/main.js?v=4.15"></script>
     </body>
 </html>

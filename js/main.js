@@ -56,6 +56,8 @@
     // waits for that first tap: it starts the music and effects at the same moment the game appears.
     const bootEl = document.getElementById("boot"), hint = document.getElementById("bootHint");
     const firstTrack = G.audio.preloadMusic();
+    const q = G.s.set.gfx || "low", gfxNote = document.getElementById("bootGfx");
+    if (gfxNote) gfxNote.textContent = q === "high" ? "Graphics: High. Lower it any time with the HI button in the arena." : "Graphics: " + (q === "low" ? "Low" : "Medium") + ". Try higher with the " + (q === "low" ? "LO" : "MED") + " button in the arena for richer visuals.";
     const ready = () => { if (bootEl.dataset.ready) return; bootEl.dataset.ready = 1; hint.textContent = "Tap anywhere to start"; bootEl.classList.add("ready"); };
     if (firstTrack) { firstTrack.addEventListener("canplaythrough", ready, { once: true }); setTimeout(ready, 2500); } else setTimeout(ready, 400);
     G.paused = "boot";
