@@ -71,7 +71,6 @@
   U.openSummon = function () { U.close(); $("summon").hidden = false; dirty.summon = 1; tabs("forge"); };
   U.closeSummon = function (quiet) { if ($("summon").hidden) return; $("summon").hidden = true; if (U.pull && U.pull.phase === "show") U.pull = null; if (!quiet) tabs(); };
   function tabs(force) {
-    if (G.audio && G.audio._unlocked) setTimeout(() => G.audio.music(), 0); // screen changed: let the music follow right away
     const cur = force || (!$("summon").hidden ? "forge" : open || "descent");
     document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === cur || (b.dataset.tab === "more" && !["descent", "warband", "forge", "journal", "shop"].includes(cur))));
   }

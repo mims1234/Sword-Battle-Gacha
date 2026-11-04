@@ -224,18 +224,11 @@
   // Start downloading the track for where the player is before they tap, so it plays the moment they do.
   const preEls = {};
   function currentTrack() {
-    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat, f = G.curFloor(), area = G.rift ? "demon" : G.biomeOf(f).id;
+    // Only the floor decides the music: the area's theme, or the boss theme during a boss fight.
+    // Menus (summon, shop, collection...) never change it; summons and wins play short effects on top instead.
+    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat, area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id;
     const tense = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
-    const screen = G.ui && G.ui.screen ? G.ui.screen() : null, B = C0 && C0.boss ? G.bossAt(f) : null;
-    // Screens first (summon altar, shop), then fights (final boss, realm lords, the gate), then the area.
-    // In realms II-X the realm's own theme takes turns with the area themes, one 10-floor area each.
-    const realm = G.realmOf(f), rt = "realm_" + realm, alt = realm > 0 && tracks[rt] && Math.floor((f - 1) / 10) % 2 === 0;
-    const order = [
-      screen === "summon" && "summon", screen === "shop" && "shop",
-      B && B.final && "throne", B && B.lord && "lord", G.gate && "gate",
-      tense && "boss", alt && rt, area,
-    ];
-    const id = order.find((k) => k && tracks[k]) || null;
+    const id = tense && tracks.boss ? "boss" : tracks[area] ? area : null;
     return id ? { id, src: tracks[id] } : null;
   }
   A.preloadMusic = function () {
