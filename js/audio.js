@@ -205,10 +205,21 @@
     if (rec && !was) { rec.ducked = true; rec.els.forEach((el) => { if (!el.paused) fade(el, 0, 0.25); }); }
     if (mus) mus.bus.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.08);
   };
+  // Every music player ever started is kept here until it is silent, so none can be forgotten and keep playing
+  // (fast switches, like a boss fight that ends quickly, used to leave the old track running under the new one).
+  const live = new Set();
   function recTick() {
-    const now = performance.now(), all = rec ? rec.els.concat(rec.old || []) : [];
-    all.forEach((el) => { const f = el._f; if (!f) return; const k = Math.min(1, (now - f.t0) / f.d); el.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * k)); if (k >= 1) { el._f = null; if (f.to === 0) el.pause(); } });
-    if (rec && rec.old && rec.old.every((el) => el.paused)) rec.old = null;
+    const now = performance.now();
+    if (rec) rec.els.forEach((el) => live.add(el));
+    live.forEach((el) => {
+      const f = el._f;
+      if (f) { const k = Math.min(1, (now - f.t0) / f.d); el.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * k)); if (k >= 1) { el._f = null; if (f.to === 0) el.pause(); } }
+      const mine = rec && rec.els.includes(el);
+      // Anything that isn't the current track and isn't fading out gets stopped.
+      if (!mine && !el._f) { el.pause(); live.delete(el); }
+      // The current track's spare player only plays while it is fading in or out during the loop cross-fade.
+      else if (mine && el !== rec.els[rec.i] && !el._f && !el.paused) el.pause();
+    });
     if (!rec) return;
     const a = rec.els[rec.i], b = rec.els[1 - rec.i];
     if (rec.ducked) {
