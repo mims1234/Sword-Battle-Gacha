@@ -83,9 +83,9 @@ window.G = window.G || {};
 
   // Constellation: permanent, bought with Embers. cost(level) = base + step*level
   G.STARS = [
-    { id: "might", name: "The Edge", desc: "+10% damage", max: 25, base: 1, step: 1, x: 150, y: 40 },
-    { id: "vital", name: "The Bulwark", desc: "+10% health", max: 25, base: 1, step: 1, x: 70, y: 84 },
-    { id: "avarice", name: "The Reaper", desc: "+10% gold", max: 25, base: 1, step: 1, x: 232, y: 84 },
+    { id: "might", name: "The Edge", desc: "+10% damage", max: 100, base: 1, step: 1, x: 150, y: 40 },
+    { id: "vital", name: "The Bulwark", desc: "+10% health", max: 100, base: 1, step: 1, x: 70, y: 84 },
+    { id: "avarice", name: "The Reaper", desc: "+10% gold", max: 100, base: 1, step: 1, x: 232, y: 84 },
     { id: "fortune", name: "The Hawk", desc: "+2% critical chance", max: 10, base: 2, step: 1, x: 150, y: 110 },
     { id: "vigil", name: "The Watchfire", desc: "+5% offline earnings, +1 h offline cap", max: 6, base: 2, step: 2, x: 52, y: 170 },
     { id: "momentum", name: "The Stair", desc: "Start each run 5 floors deeper", max: 8, base: 3, step: 2, x: 150, y: 184 },
@@ -111,13 +111,15 @@ window.G = window.G || {};
     { id: "calm", name: "Pilgrim Road", desc: "Monsters hit 30% softer. 20% less gold.", color: "#7dff8f", eatk: 0.7, souls: 0.8 },
   ];
 
-  G.UNLOCK = { slot4: 5, ult: 5, slot5: 10, ten: 10, runes: 20, ascend: 20, expedition: 30, bounty: 30, rift: 40, rebirth: 40 };
+  G.UNLOCK = { slot4: 5, ult: 5, slot5: 10, ten: 10, gate: 11, runes: 20, ascend: 20, expedition: 30, bounty: 30, rift: 40, rebirth: 40 };
   G.UNLOCK_TEXT = [
     [5, "Fourth blade slot and ultimates"],
     [10, "Fifth slot and 10x summons"],
+    [11, "Boss Gate: fight bosses again for their own blades"],
     [20, "Runes and merging duplicates"],
     [30, "Missions and daily quests"],
     [40, "Daily trial and rebirth"],
+    [101, "Realm II: new blades join the summon pool"],
   ];
 
   G.BOUNTY_POOL = [
@@ -138,6 +140,11 @@ window.G = window.G || {};
     { id: "f2", name: "No Daylight", text: "Reach floor 30", get: (s) => s.best, goal: 30, rew: 6 },
     { id: "f3", name: "Deep Dweller", text: "Reach floor 70", get: (s) => s.best, goal: 70, rew: 12 },
     { id: "f4", name: "Second Descent", text: "Reach floor 120", get: (s) => s.best, goal: 120, rew: 25 },
+    { id: "f5", name: "Ember Walker", text: "Reach floor 200", get: (s) => s.best, goal: 200, rew: 30 },
+    { id: "f6", name: "Halfway Down", text: "Reach floor 500", get: (s) => s.best, goal: 500, rew: 60 },
+    { id: "f7", name: "The Throne Below", text: "Clear floor 1000", get: (s) => (s.won ? 1 : 0), goal: 1, rew: 200 },
+    { id: "b1", name: "Trophy Wall", text: "Own 5 boss blades", get: (s) => G.sigOwned(), goal: 5, rew: 10 },
+    { id: "b2", name: "Kingslayer", text: "Own 25 boss blades", get: (s) => G.sigOwned(), goal: 25, rew: 40 },
     { id: "p1", name: "Collector", text: "Summon 50 blades", get: (s) => s.pulls, goal: 50, rew: 5 },
     { id: "p2", name: "Hoarder", text: "Summon 500 blades", get: (s) => s.pulls, goal: 500, rew: 20 },
     { id: "l1", name: "Forgeborn", text: "Summon a Legendary blade", get: (s) => s.stat.legend, goal: 1, rew: 5 },

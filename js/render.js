@@ -15,8 +15,14 @@
   const ROWS = [8, 3, 4, 2, 6, 5, 12, 10, 5, 2, 2, 2, 3], CELL = [];
   ROWS.forEach((n, r) => { for (let i = 0; i < n; i++) CELL.push([i * 32, r * 32, r, i]); });
   G.moCell = (i) => CELL[i] || CELL[0];
-  G.swCss = (i) => `background-position:${((i % 6) / 5) * 100}% ${(Math.floor(i / 6) / 4) * 100}%`;
-  G.moCss = (i) => { const p = G.moCell(i); return `background-position:${(p[3] / 11) * 100}% ${(p[2] / 12) * 100}%`; };
+  const hueCss = (h) => (h ? `;--sh:hue-rotate(${h}deg) saturate(1.25)` : "");
+  G.swCss = (i) => {
+    const w = G.SW[i] || {}, g = G.ART && G.ART.slot[i], BA = window.BLADE_ART;
+    if (w.cell != null && BA) { const C = BA.cols, Rr = BA.rows; return `background-image:url(assets/blades.png);background-size:${C * 100}% ${Rr * 100}%;background-position:${((w.cell % C) / (C - 1)) * 100}% ${Rr > 1 ? (Math.floor(w.cell / C) / (Rr - 1)) * 100 : 0}%`; }
+    if (g != null && G.ART.url) { const C = G.ART.cols, Rr = G.ART.rows; return `background-image:var(--blades);background-size:${C * 100}% ${Rr * 100}%;background-position:${((g % C) / (C - 1)) * 100}% ${Rr > 1 ? (Math.floor(g / C) / (Rr - 1)) * 100 : 0}%`; }
+    const k = w.spr != null ? w.spr : i; return `background-position:${((k % 6) / 5) * 100}% ${(Math.floor(k / 6) / 4) * 100}%` + hueCss(w.hue);
+  };
+  G.moCss = (i, hue) => { const p = G.moCell(i); return `background-position:${(p[3] / 11) * 100}% ${(p[2] / 12) * 100}%` + hueCss(hue); };
 
   const rnd = G.rand, rd = Math.round;
   // Monsters stand to the right of the blades, so they should face left. The sheet draws almost
@@ -128,7 +134,9 @@
   function buildScene(f) {
     const b = G.biomeOf(f), rng = G.rng(f * 7919 + 13);
     const vr = rng(), variant = vr < 1 / 12 ? ["frozen", "burning", "flooded"][Math.floor(rng() * 3)] : null;
-    const p = variant ? variantPal(PAL[b.id], variant) : PAL[b.id];
+    let p = variant ? variantPal(PAL[b.id], variant) : PAL[b.id];
+    const RL = G.REALMS[G.realmOf(f)];
+    if (RL.tint && !G.rift) { const o = Object.assign({}, p); for (const k in o) if (typeof o[k] === "string" && o[k][0] === "#") o[k] = mix(o[k], RL.tint, k === "light" ? 0.35 : 0.2); o.sky = p.sky.map((x) => mix(x, RL.tint, 0.18)); if (p.glass) o.glass = p.glass; p = o; }
     const S = { f, b, p, variant, lights: [], cracks: [], windows: [], strips: {}, name: (variant ? VARIANT[variant].name + " " : "") + b.name.replace(/^The /, variant ? "" : "The ") };
     if (!variant) S.name = b.name;
     const yg = YG;
@@ -289,6 +297,9 @@
   };
   const Q = () => QUALITY[G.s.set.gfx] || QUALITY.low;
   function tinted(img, sx, sy, col, a) { fc.globalCompositeOperation = "source-over"; fc.globalAlpha = 1; fc.clearRect(0, 0, 32, 32); fc.drawImage(img, sx, sy, 32, 32, 0, 0, 32, 32); fc.globalCompositeOperation = "source-atop"; fc.globalAlpha = a; fc.fillStyle = col; fc.fillRect(0, 0, 32, 32); return fl; }
+  // Deeper realms recolour the same sprites. ctx.filter is skipped where the browser lacks it.
+  let HASF = false;
+  function hued(h, fn) { if (!h || !HASF) return fn(); c.filter = `hue-rotate(${h}deg) saturate(1.25)`; fn(); c.filter = "none"; }
   function sprite(img, sx, sy, x, y, s, a, flip) { const w = 32 * s; c.globalAlpha = a == null ? 1 : a; if (flip) { c.save(); c.translate(rd(x), 0); c.scale(-1, 1); c.drawImage(img, sx, sy, 32, 32, rd(-w / 2), rd(y - w / 2), w, w); c.restore(); } else c.drawImage(img, sx, sy, 32, 32, rd(x - w / 2), rd(y - w / 2), w, w); c.globalAlpha = 1; }
   function text(s, x, y, col, size, align) {
     c.font = (size || 8) + "px Silkscreen, 'Pixelify Sans', monospace"; c.textAlign = align || "center"; c.textBaseline = "alphabetic";
@@ -312,9 +323,9 @@
         const n = C.enemies.length, bossWave = C.boss && C.wave === C.waves;
         C.enemies.forEach((en, j) => {
           const big = en.kind === "boss" || en.kind === "hollow", p = epos(j, n, big, bossWave && !big);
-          ev.set(en.id, { id: en.id, mi: en.mi, kind: en.kind, sw: en.sw, trait: en.trait, j, n, big, bossWave: bossWave && !big, x: W + 20 + j * 12, tx: p[0], y: p[1], s: big ? 2 : 1, hit: 0, dying: 0, hp: 1, bump: 0, age: 0, flip: FACES_RIGHT.has(en.mi) });
+          ev.set(en.id, { id: en.id, mi: en.mi, kind: en.kind, sw: en.sw, trait: en.trait, hue: en.hue || 0, j, n, big, bossWave: bossWave && !big, x: W + 20 + j * 12, tx: p[0], y: p[1], s: big ? 2 : 1, hit: 0, dying: 0, hp: 1, bump: 0, age: 0, flip: FACES_RIGHT.has(en.mi) });
         });
-        if (e.boss) { R.banner(C.enemies[0].name.toUpperCase(), "#ff5a4a", "Guardian of " + R.areaName()); if (!calm()) shake = 3; }
+        if (e.boss) { const B0 = C.enemies[0], mech = B0.mech ? Object.keys(B0.mech).map((k) => G.BOSS_MECH[k].name).join(" · ") : ""; R.banner(B0.name.toUpperCase(), "#ff5a4a", (B0.title ? B0.title + ", guardian of " : "Guardian of ") + R.areaName() + (mech ? " — " + mech : "")); if (!calm()) shake = 3; }
         break;
       }
       case "waveClear": scrollV = 50; break;
@@ -452,7 +463,7 @@
     if (s.moon > 0 || pend === "moon") { c.fillStyle = s.moon > 0 ? "#c81e1e" : "#5a1414"; c.beginPath(); c.arc(rd(W * 0.82), 16, 7, 0, 6.3); c.fill(); c.globalCompositeOperation = "lighter"; glow(W * 0.82, 16, 26, "#ff2a2a", s.moon > 0 ? 0.6 : 0.25); c.globalCompositeOperation = "source-over"; }
     if (star) { const q = star.t / 1.4; c.fillStyle = "#fff6d0"; for (let i = 0; i < 8; i++) { c.globalAlpha = (1 - q) * (1 - i / 8); c.fillRect(rd(star.x + q * 120 - i * 3), rd(star.y + q * 34 - i), 1, 1); } c.globalAlpha = 1; }
     // a guardian's shadow crosses the far wall two floors before it arrives
-    if (!G.rift && C && (C.floor % 10 === 8 || C.floor % 10 === 9)) { const bi = scene.b.boss, cell = G.moCell(bi), q = ((T * 0.05) % 1.3) - 0.15; sprite(tinted(imgM, cell[0], cell[1], "#000", 1), 0, 0, W * (1 - q), YG - 34, 3, 0.35); }
+    if (!G.rift && !G.gate && C && (C.floor % 10 === 8 || C.floor % 10 === 9)) { const NB = G.bossAt(Math.ceil(C.floor / 10) * 10), bi = NB ? NB.mi : scene.b.boss, cell = G.moCell(bi), q = ((T * 0.05) % 1.3) - 0.15; sprite(tinted(imgM, cell[0], cell[1], "#000", 1), 0, 0, W * (1 - q), YG - 34, 3, 0.35); }
     strip(scene.strips.mid, 0.45);
     strip(scene.strips.floor, 1);
     // living environment
@@ -485,14 +496,14 @@
     ents.sort((a, z) => a.y - z.y).forEach((e) => {
       if (e.bl) {
         const bl = e.bl, pp = G.party[e.i]; if (!pp) return;
-        const col = G.EL[pp.st.el].color, casting = bl.cast > 0, idx = pp.b.i, qx = (idx % 6) * 32, qy = Math.floor(idx / 6) * 32;
+        const col = G.EL[pp.st.el].color, casting = bl.cast > 0, W0 = G.SW[pp.b.i], cell = G.swCell(pp.b.i, imgS), SI = cell.img, qx = cell.x, qy = cell.y, bh = cell.gen ? 0 : W0.hue;
         shadow(bl.bx, bl.by + 15, 14);
-        if (bl.dead) { sprite(tinted(imgS, qx, qy, "#000", 0.65), 0, 0, bl.bx, bl.by + 6, 1, 0.8, true); return; }
+        if (bl.dead) { sprite(tinted(SI, qx, qy, "#000", 0.65), 0, 0, bl.bx, bl.by + 6, 1, 0.8, true); return; }
         const ready = G.rage[e.i] >= 100;
         c.globalCompositeOperation = "lighter"; glow(bl.x, bl.y, casting ? 30 : ready ? 20 + Math.sin(T * 8) * 3 : 15, col, casting ? 0.7 : ready ? 0.55 : 0.28 + bl.go * 0.25); if (pp.b.t === "mythic") glow(bl.x, bl.y, 22, "#ff4558", 0.25 + Math.sin(T * 3 + e.i) * 0.08); c.globalCompositeOperation = "source-over";
-        if (bl.go > 0.1) { sprite(imgS, qx, qy, bl.x - (bl.x - bl.bx) * 0.25, bl.y, 1, 0.25, true); }
+        if (bl.go > 0.1) hued(bh, () => sprite(SI, qx, qy, bl.x - (bl.x - bl.bx) * 0.25, bl.y, 1, 0.25, true));
         const hit = bl.hitT > 0.5;
-        sprite(hit ? tinted(imgS, qx, qy, "#ff5a4a", 0.7) : imgS, hit ? 0 : qx, hit ? 0 : qy, bl.x + (hit ? rd(rnd(-1, 1)) : 0), bl.y - (casting ? 4 : 0), 1, 1, true); // the sheet draws blades pointing up-left; mirror so they point at the monsters
+        hued(hit ? 0 : bh, () => sprite(hit ? tinted(SI, qx, qy, "#ff5a4a", 0.7) : SI, hit ? 0 : qx, hit ? 0 : qy, bl.x + (hit ? rd(rnd(-1, 1)) : 0), bl.y - (casting ? 4 : 0), 1, 1, true)); // the sheet draws blades pointing up-left; mirror so they point at the monsters
         if (pp.b.s > 0 && Math.sin(T * 2 + e.i * 2) > 0.8) { c.fillStyle = "#fff"; c.fillRect(rd(bl.x + rnd(-8, 8)), rd(bl.y + rnd(-10, 10)), 1, 1); }
         if (bl.hp < 0.999) { c.fillStyle = "#000"; c.fillRect(bl.bx - 9, bl.by + 18, 18, 3); c.fillStyle = bl.hp > 0.35 ? "#5fd08a" : "#e0503a"; c.fillRect(bl.bx - 8, bl.by + 19, Math.max(0, rd(16 * bl.hp)), 1); }
         if (ready && !casting) { c.fillStyle = Math.sin(T * 10) > 0 ? "#ffe14a" : "#ff8a2a"; c.fillRect(bl.bx - 1, bl.by - 22, 2, 4); c.fillRect(bl.bx - 1, bl.by - 16, 2, 1); }
@@ -512,7 +523,7 @@
           else if (v.frz) { src = tinted(imgM, qx, qy, "#7fdcff", 0.6); qx = qy = 0; }
           else if (v.kind === "gild" || v.kind === "imp") { src = tinted(imgM, qx, qy, "#ffc830", 0.55); qx = qy = 0; }
           else if (v.kind === "champ") { src = tinted(imgM, qx, qy, "#ff7a20", 0.25); qx = qy = 0; }
-          sprite(src, qx, qy, x, y, S2, a, v.kind === "imp" && !v.dying ? Math.cos(v.age * 3.2) > 0 : v.flip);
+          hued(src === imgM ? v.hue : 0, () => sprite(src, qx, qy, x, y, S2, a, v.kind === "imp" && !v.dying ? Math.cos(v.age * 3.2) > 0 : v.flip));
         }
         if (!v.dying && !v.big) {
           if (v.hp < 0.999) { c.fillStyle = "#000"; c.fillRect(rd(v.x - 10), rd(v.y - h - 4), 20, 3); c.fillStyle = "#d0342a"; c.fillRect(rd(v.x - 9), rd(v.y - h - 3), Math.max(0, rd(18 * v.hp)), 1); }
@@ -549,7 +560,7 @@
   }
 
   R.init = function (canvas) {
-    cv = canvas; c = cv.getContext("2d", { alpha: false }); R.resize();
+    cv = canvas; c = cv.getContext("2d", { alpha: false }); HASF = typeof c.filter === "string"; R.resize();
     cv.addEventListener("pointerdown", (e) => R.click(e.clientX, e.clientY));
     window.addEventListener("resize", R.resize);
     if (window.ResizeObserver) new ResizeObserver(R.resize).observe(cv);

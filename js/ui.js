@@ -4,7 +4,8 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
   const sw = (i, cls) => `<span class="sw ${cls || ""}" style="${G.swCss(i)}"></span>`;
-  const mo = (i, cls) => `<span class="mo ${cls || ""}" style="${G.moCss(i)}"></span>`;
+  const mo = (i, cls, hue) => `<span class="mo ${cls || ""}" style="${G.moCss(i, hue)}"></span>`;
+  const usd = (n) => "$" + n.toFixed(2);
   const tcol = (b) => G.TIER[b.t].color;
   const starsOf = (b) => (b.s ? `<span class="stars">${"★".repeat(b.s)}</span>` : "");
   const GOLD = `<i class="ic gold"></i>`, GEM = `<i class="ic gem"></i>`, ESS = `<i class="ic ess"></i>`;
@@ -16,6 +17,8 @@
   let dirty = { all: 1 }, open = null, pickSlot = null, wide = false, lastHud = 0, lastPanel = 0, statusKey = "", feedKey = "", modalTimer = null, coachKey = "";
   U.pull = null;
   U.dirty = (n) => { dirty[n] = 1; };
+  // Which screen the player is looking at; the music follows it.
+  U.screen = () => (!$("summon").hidden ? "summon" : open);
 
   const PANELS = {
     warband: { title: "Team", fn: pTeam },
@@ -25,11 +28,14 @@
     bestiary: { title: "Monsters", fn: pMonsters },
     exp: { title: "Missions", fn: pMissions, lock: "expedition" },
     rift: { title: "Daily Trial", fn: pTrial, lock: "rift" },
+    shop: { title: "Shop", fn: pShop },
+    gate: { title: "Boss Gate", fn: pGate, lock: "gate" },
+    codex: { title: "Collection", fn: pCodex },
     more: { title: "Menu", fn: pMenu },
     settings: { title: "Settings", fn: pSettings },
     guides: { title: "Guides", fn: pGuides },
   };
-  const NAV = ["forge", "relics", "stars", "bestiary", "exp", "rift", "settings"];
+  const NAV = ["forge", "shop", "codex", "gate", "relics", "stars", "bestiary", "exp", "rift", "settings"];
   const navTitle = (p) => (p === "forge" ? "Summon" : PANELS[p].title);
   const navLock = (p) => p !== "forge" && PANELS[p].lock && !G.unlocked(PANELS[p].lock);
 
@@ -65,8 +71,9 @@
   U.openSummon = function () { U.close(); $("summon").hidden = false; dirty.summon = 1; tabs("forge"); };
   U.closeSummon = function (quiet) { if ($("summon").hidden) return; $("summon").hidden = true; if (U.pull && U.pull.phase === "show") U.pull = null; if (!quiet) tabs(); };
   function tabs(force) {
+    if (G.audio && G.audio._unlocked) setTimeout(() => G.audio.music(), 0); // screen changed: let the music follow right away
     const cur = force || (!$("summon").hidden ? "forge" : open || "descent");
-    document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === cur || (b.dataset.tab === "more" && !["descent", "warband", "forge", "journal"].includes(cur))));
+    document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === cur || (b.dataset.tab === "more" && !["descent", "warband", "forge", "journal", "shop"].includes(cur))));
   }
 
   function renderPanels() {
@@ -94,6 +101,7 @@
       <div class="rar">${T.label}${b.s ? " · " + "★".repeat(b.s) : ""}</div>
       <div class="nm">${esc(G.bladeName(b))}</div>
       <div class="ty"><i class="eldot" style="background:${G.EL[st.el].color}"></i>${G.EL[st.el].label} · ${st.role}</div>
+      <div class="origin">${sword.sig ? `Boss blade · floor ${sword.sig}` : `Realm ${G.ROMAN[sword.realm || 0]} · ${G.REALMS[sword.realm || 0].name}`}</div>
       <div class="stats"><span><b>${G.fmt(st.atk)}</b>Attack</span><span><b>${G.fmt(st.hp)}</b>Health</span><span><b>${st.int.toFixed(2)}s</b>Speed</span></div>
       ${b.a.map((a) => `<div class="af">${G.AFFIX[a[0]].lab(a[1])}</div>`).join("")}
       ${b.r ? `<div class="af rune">${G.RUNE[b.r.k].glyph} ${G.runeText(b.r)}</div>` : ""}
@@ -202,7 +210,9 @@
         <div class="pity"><div class="bar"><i style="width:${(s.pity / G.PITY_HARD) * 100}%"></i></div><span>${s.boon ? "Hollow Blade reward: your next summon is Legendary or better." : `Legendary guaranteed within <b>${G.PITY_HARD - s.pity}</b> summons. Chance right now: ${(top * 100).toFixed(1)}%.`}</span></div>
         ${blessed ? `<div class="res" style="color:#ffe9a8">Falling star: Legendary chance doubled for ${G.fmtTime((s.star - Date.now()) / 1000)}.</div>` : ""}
         <div class="rates">${G.TIERS.map((t) => `<i style="color:${G.TIER[t].color}">${G.TIER[t].label} ${+(G.RATES[t] * 100).toFixed(1)}%</i>`).join("")}</div>
+        <div class="res">Blades come from <b>Realm ${G.ROMAN[G.realmOf(s.best)]}</b>, the deepest realm you have reached${G.realmOf(s.best) ? ", sometimes from an earlier one" : ""}. Bosses keep their own blades: win them in the <b>Boss Gate</b>.</div>
         <p class="hint">Get gems from bosses, reaching new floors, treasure imps, quests and time spent playing. ${s.sigils < 1 ? "<b>You are out of gems.</b>" : ""}</p>
+        <div class="rowbtns center"><button class="btn" data-act="open" data-p="shop">Shop${G.shop.ready() ? " · free gift" : ""}</button></div>
       </div>`;
   }
 
@@ -270,6 +280,73 @@
       <div class="rowbtns center"><button class="btn gold big" data-act="startRift" ${used || G.rift ? "disabled" : ""}>${G.rift ? "In progress" : used ? "Come back tomorrow" : "Start the trial"}</button></div>`;
   }
 
+  // ----- shop -----
+  function itemRow(k) {
+    const it = G.shop.ITEMS[k], n = G.s.items[k] || 0;
+    const use = k === "key" ? `<button class="btn" data-act="open" data-p="gate" ${G.unlocked("gate") ? "" : "disabled"}>Boss Gate</button>` : `<button class="btn" data-act="useItem" data-k="${k}" ${n ? "" : "disabled"}>Use</button>`;
+    return `<div class="item" style="--ic:${it.col}"><b class="iic">${it.icon}</b><span><b>${it.name} <em>×${n}</em></b><small>${it.desc}</small></span><div class="ibtns">${use}<button class="btn gold" data-act="buyItem" data-k="${k}" ${G.s.sigils >= it.gems ? "" : "disabled"}>${GEM} ${it.gems}</button></div></div>`;
+  }
+  function pShop() {
+    const s = G.s, SH = G.shop, now = Date.now(), r = G.realmOf(s.best);
+    let h = `<div class="banner test" style="--ec:#7dff8f"><b>Test store</b><span>Every purchase here is simulated and free. No money is charged. Prices show what a real store would ask.</span></div>`;
+    h += `<div class="claimrow"><span><b>Daily gift</b><small>${SH.FREE_DAILY.gems} free gems every day</small></span><button class="btn${SH.freeReady() ? " gold" : ""}" data-act="claimFree" ${SH.freeReady() ? "" : "disabled"}>${SH.freeReady() ? "Claim" : "Tomorrow"}</button></div>`;
+    if (now < s.shop.passEnd) h += `<div class="claimrow"><span><b style="color:#d9a8ff">Moon Pass</b><small>${SH.passDays()} days left · ${SH.PASS_DAILY.gems} gems and ${SH.PASS_DAILY.key} Boss Key a day</small></span><button class="btn${SH.passReady() ? " gold" : ""}" data-act="claimPass" ${SH.passReady() ? "" : "disabled"}>${SH.passReady() ? "Claim" : "Tomorrow"}</button></div>`;
+    const buffs = [["gold", "Gold Elixir", "#ffd24a"], ["dmg", "Fury Tonic", "#ff5a4a"]].filter((b) => now < s.buff[b[0]]);
+    if (now < s.star) buffs.push(["star", "Lucky Charm", "#7dff8f"]);
+    if (buffs.length) h += `<div class="res">${buffs.map((b) => `<b style="color:${b[2]}">${b[1]}</b> ${G.fmtTime(((b[0] === "star" ? s.star : s.buff[b[0]]) - now) / 1000)}`).join(" · ")}</div>`;
+    h += `<h3>Items <small>bought with gems</small></h3><div class="items">${G.shop.ITEM_KEYS.map(itemRow).join("")}</div>`;
+    const offers = SH.OFFERS.filter((o) => !(o.once && SH.owned(o.sku)) && r >= (o.needRealm || 0));
+    if (offers.length) h += `<h3>Offers</h3><div class="offers">${offers.map((o) => `<button class="offer" data-act="buyAsk" data-sku="${o.sku}" style="--oc:${o.col}"><b>${o.name}</b><small>${o.desc}</small><span class="price">${usd(o.usd)}</span>${o.once ? `<em class="tag">Once only</em>` : ""}</button>`).join("")}</div>`;
+    h += `<h3>Gems</h3><div class="packs">${SH.PACKS.map((p) => `<button class="pack" data-act="buyAsk" data-sku="${p.sku}"><span class="gempile g${p.art}">${'<i class="ic gem"></i>'.repeat(Math.min(5, p.art))}</span><b>${p.gems * (SH.isFirst(p.sku) ? 2 : 1)}</b><small>${p.name}</small><span class="price">${usd(p.usd)}</span>${SH.isFirst(p.sku) ? `<em class="tag dbl">First buy ×2</em>` : p.tag ? `<em class="tag">${p.tag}</em>` : ""}</button>`).join("")}</div>`;
+    h += `<p class="hint">Test purchases so far: ${s.shop.receipts.length} (would have cost ${usd(SH.spent())}).</p>`;
+    return h;
+  }
+
+  // ----- collection -----
+  function pCodex() {
+    const s = G.s, own = {}, top = G.realmOf(s.best);
+    s.blades.forEach((b) => { if (!own[b.i] || G.TIER[b.t].rank > G.TIER[own[b.i].t].rank) own[b.i] = b; });
+    const cell = (w) => { const b = own[w.index]; return b ? `<button class="tile" data-act="tile" data-u="${b.u}" style="--tc:${G.TIER[w.rarity].color}" title="${esc(w.name)}">${sw(w.index)}</button>` : `<button class="tile unseen" data-act="codexInfo" data-i="${w.index}" style="--tc:${G.TIER[w.rarity].color}" title="Not found yet">${sw(w.index)}</button>`; };
+    const order = (a, z) => G.TIER[z.rarity].rank - G.TIER[a.rarity].rank || a.index - z.index;
+    let h = `<p class="hint">Every blade has its own look. Summon to fill each realm's page. Deeper realms open new pages.</p>`;
+    for (let r = top; r >= 0; r--) {
+      const list = G.SW.filter((w) => w.realm === r && !w.sig).sort(order), got = list.filter((w) => own[w.index]).length;
+      h += `<h3>Realm ${G.ROMAN[r]} <small>${G.REALMS[r].name} · ${got}/${list.length}</small></h3><div class="bar"><i style="width:${(got / list.length) * 100}%"></i></div><div class="tiles codex">${list.map(cell).join("")}</div>`;
+    }
+    const sigs = G.SW.filter((w) => w.sig && w.sig < s.best), sg = sigs.filter((w) => own[w.index]).length;
+    if (sigs.length) h += `<h3>Boss blades <small>${sg}/${sigs.length} · from the Boss Gate</small></h3><div class="tiles codex">${sigs.map(cell).join("")}</div>`;
+    if (top < G.REALMS.length - 1) h += `<p class="hint">${G.REALMS.length - 1 - top} more realm${top < G.REALMS.length - 2 ? "s" : ""} below, each with ${G.SW.filter((w) => w.realm === top + 1 && !w.sig).length} new blades.</p>`;
+    return h;
+  }
+
+  // ----- boss gate -----
+  function pGate() {
+    const s = G.s, free = G.gateFree(), beaten = G.BOSS_FLOORS.filter((f) => f < s.best);
+    let h = `<p class="hint">Fight any boss you have beaten, alone, for a ${Math.round(G.GATE_CHANCE * 100)}% chance at its own blade. Boss blades are stronger than summoned Legendaries of the same realm. Win ${G.GATE_PITY} times without it and the blade is guaranteed.</p>
+      <div class="claimrow"><span><b>${free ? "Free try ready" : "Free try used today"}</b><small>Boss Keys: <b>${s.items.key}</b> · one free try every day</small></span><button class="btn gold" data-act="buyItem" data-k="key" ${s.sigils >= G.shop.ITEMS.key.gems ? "" : "disabled"}>+1 key ${GEM} ${G.shop.ITEMS.key.gems}</button></div>`;
+    if (G.gate) h += `<div class="res" style="color:#ffab2e">Fighting ${esc(G.gate.boss.name)} now. <button class="btn" data-act="leaveGate">Leave (keeps your key)</button></div>`;
+    if (!beaten.length) return h + `<p class="hint">Beat the boss on floor 10 first.</p>`;
+    const can = !G.gate && !G.rift && (free || s.items.key > 0);
+    const byRealm = {};
+    beaten.slice().reverse().forEach((f) => { const r = G.realmOf(f); (byRealm[r] = byRealm[r] || []).push(f); });
+    Object.keys(byRealm).sort((a, z) => z - a).forEach((r) => {
+      h += `<h3>Realm ${G.ROMAN[r]} <small>${G.REALMS[r].name}</small></h3>`;
+      h += byRealm[r].map((f) => {
+        const B = G.bossAt(f), idx = G.SIG[f], own = s.blades.some((b) => b.i === idx), dry = s.gate.dry[f] || 0;
+        return `<div class="bossrow${B.lord ? " lord" : ""}">${mo(B.mi, "", B.hue)}<span><b>${esc(B.name)}</b><small>Floor ${f} · ${esc(B.kind)}${B.mech.length ? " · " + B.mech.map((k) => G.BOSS_MECH[k].name).join(", ") : ""}</small><small class="sig">${own ? "✔ " : ""}${esc(G.SW[idx].name)}${own ? "" : ` · ${dry}/${G.GATE_PITY}`}</small></span><button class="sigtile${own ? " own" : ""}" data-act="sigInfo" data-f="${f}" style="--tc:${G.TIER.legendary.color}">${sw(idx)}</button><button class="btn${can ? " gold" : ""}" data-act="gate" data-f="${f}" ${can ? "" : "disabled"}>Fight</button></div>`;
+      }).join("");
+    });
+    const next = G.BOSS_FLOORS.find((f) => f >= s.best);
+    if (next) h += `<p class="hint">Next boss: floor ${next}${G.bossAt(next).lord ? ", a Realm Lord" : ""}.</p>`;
+    return h;
+  }
+  function rewardHtml(out) {
+    const parts = [];
+    if (out.gems) parts.push(`<div><b>+${out.gems}</b><span>gems</span></div>`);
+    for (const k in out.items) parts.push(`<div><b>+${out.items[k]}</b><span>${G.shop.ITEMS[k].name}</span></div>`);
+    return `<div class="report">${parts.join("")}</div>` + (out.blades.length ? `<div class="pulls n1">${out.blades.map((b) => `<button class="pcard" data-act="tile" data-u="${b.u}" style="--tc:${tcol(b)}">${sw(b.i)}<span class="rar">${G.TIER[b.t].label}</span><span class="nm">${esc(G.bladeName(b))}</span></button>`).join("")}</div>` : "");
+  }
+
   // Each entry: a picture, what it is in a few words, and a live status so the player knows where to go.
   function menuInfo(p) {
     const s = G.s, now = Date.now();
@@ -282,6 +359,9 @@
       case "bestiary": return { icon: mo(52, "mi-sprite"), col: "#7affc8", desc: "Every monster you have met", badge: Object.keys(s.mk).length + "/" + G.MON.length + " found" };
       case "exp": { const done = s.exp.filter((e) => now >= e.end).length, away = s.exp.length - done; return { icon: sw(13, "mi-sprite"), col: "#ffb45a", desc: "Spare blades bring back loot", badge: done ? done + " back home" : away ? away + " away" : G.EXP_SLOTS + " free", hot: done > 0 }; }
       case "rift": { const used = s.rift.day === G.day(); return { icon: "⧗", col: "#b56bff", desc: "3-minute challenge, once a day", badge: used ? "Done today" : "Ready", hot: !used }; }
+      case "shop": return { icon: '<i class="mi-gem"></i>', col: "#7dff8f", desc: "Gems, items and offers (test store)", badge: G.shop.ready() ? "Free gift ready" : "", hot: G.shop.ready() };
+      case "codex": { const own = new Set(s.blades.map((b) => b.i)), R = G.realmOf(s.best), tot = G.SW.filter((w) => !w.sig && w.realm <= R).length; return { icon: sw(G.SW.length - 1, "mi-sprite"), col: "#c9a0ff", desc: "Every blade design you have found", badge: [...own].filter((i) => !G.SW[i].sig).length + "/" + tot + " found" }; }
+      case "gate": { const n = G.BOSS_FLOORS.filter((f) => f < s.best).length; return { icon: G.bossAt(10) ? mo(G.bossAt(10).mi, "mi-sprite") : "⚿", col: "#ffab2e", desc: "Refight bosses for their blades", badge: G.gateFree() ? "Free try ready" : "⚿ " + s.items.key + " keys", hot: G.gateFree() && n > 0 }; }
       case "guides": return { icon: "?", col: "#9fe870", desc: "Replay any tutorial", badge: G.GUIDES.filter((g) => guideOpen(g)).length + " guides" };
       case "settings": return { icon: "⚙", col: "#a8977d", desc: "Sound, save code, stats", badge: "" };
     }
@@ -309,6 +389,7 @@
     const s = G.s, t = (k, label, hint) => `<div class="claimrow"><span><b>${label}</b><small>${hint}</small></span><button class="btn${s.set[k] ? " gold" : ""}" data-act="set" data-k="${k}">${s.set[k] ? "On" : "Off"}</button></div>`;
     return `<div class="claimrow"><span><b>Graphics</b><small>Low runs best on older phones. Medium and High add lighting, weather, more particles and richer animations. Gameplay is the same on every level.</small></span><div class="seg" role="group" aria-label="Graphics quality">${["low", "medium", "high"].map((q) => `<button class="btn${(s.set.gfx || "low") === q ? " gold" : ""}" data-act="gfx" data-q="${q}" aria-pressed="${(s.set.gfx || "low") === q}">${q[0].toUpperCase() + q.slice(1)}</button>`).join("")}</div></div>` + t("music", "Music", "Background music for each area. Also the ♪ button in the arena") + slider("musicVol", "Music volume") + t("sound", "Sound effects", "Hits, summons and rewards. Also the FX button in the arena") + slider("sfxVol", "Effects volume") + `<p class="hint">Starts at music 90% and effects 30%, so the music carries the game and effects only tell you something happened.</p>` + t("calm", "Calm mode", "No screen shake, flashes or vibration") + t("autoUlt", "Auto ultimates", "Blades use their ultimate on their own. Tapping a glowing blade yourself hits 25% harder.") +
       `<h3>Stats</h3><div class="log"><p>Best floor ${s.best} · ${G.fmt(s.kills)} monsters defeated · ${s.pulls} summons</p><p>${s.rebirths} rebirths · ${s.stat.wipes} defeats · ${s.secrets} secrets found</p><p>${G.fmt(s.stat.dmg)} total damage · ${G.fmtTime(s.stat.online)} played</p></div>
+      <h3>Store</h3><p class="hint">Test store (simulated purchases, nothing is charged). ${G.s.shop.receipts.length} test purchases.</p>
       <h3>Save</h3><div class="rowbtns"><button class="btn" data-act="export">Copy save code</button><button class="btn" data-act="importAsk">Load save code</button><button class="btn danger" data-act="resetAsk">Delete save</button></div>
       <p class="hint">Idle Blade Master ${G.VERSION}. Keyboard: 1–5 cast ultimates, Space pauses, L levels up, S opens Summon.</p>`;
   }
@@ -346,7 +427,7 @@
     const s = G.s, C = G.combat, f = G.curFloor(), b = G.biomeOf(f);
     setText("souls", G.fmt(s.souls)); setText("sigils", G.fmt(s.sigils)); setText("embers", G.fmt(s.embers));
     $("embWrap").hidden = !(s.embers > 0 || s.rebirths > 0);
-    setText("floorNo", (G.rift ? "Trial " : "Floor ") + f); setText("biome", G.rift ? G.rift.mod.name : G.render.areaName() + (G.loopOf(f) ? " " + "I".repeat(Math.min(3, G.loopOf(f)) + 1) : ""));
+    setText("floorNo", (G.rift ? "Trial " : G.gate ? "Gate " : "Floor ") + f); setText("biome", G.rift ? G.rift.mod.name : G.render.areaName() + " · " + G.ROMAN[G.realmOf(f)]);
     if (C) { const pips = $("pips"); if (pips.children.length !== C.waves) pips.innerHTML = "<i></i>".repeat(C.waves); for (let i = 0; i < C.waves; i++) pips.children[i].className = i < (C.state === "gap" ? C.wave : C.wave - 1) ? "on" : i === C.wave - 1 ? "cur" : ""; }
     let cheapest = Infinity;
     for (let i = 0; i < 5; i++) {
@@ -366,7 +447,10 @@
     const chips = [];
     if (!G.party.some(Boolean)) chips.push(["#f2c14e", s.blades.length ? "Your team is empty" : "Summon blades to start", s.blades.length ? "openTeam" : "openSummon", s.blades.length ? "Pick team" : "Summon"]);
     if (G.rift) chips.push(["#b56bff", "Trial ends in " + G.fmtTime(G.rift.t)]);
-    if (s.hold && !G.rift) chips.push(["#ffab2e", `Lost on floor ${s.wall || s.floor + 1}. Training on floor ${s.floor}`, "push", "Try again"]);
+    if (G.gate) chips.push(["#ffab2e", "Boss Gate: " + G.gate.boss.name, "leaveGate", "Leave"]);
+    if (G.buffOn("gold")) chips.push(["#ffd24a", "2x gold " + G.fmtTime((s.buff.gold - Date.now()) / 1000)]);
+    if (G.buffOn("dmg")) chips.push(["#ff5a4a", "+50% damage " + G.fmtTime((s.buff.dmg - Date.now()) / 1000)]);
+    if (s.hold && !G.rift && !G.gate && !s.won) chips.push(["#ffab2e", `Lost on floor ${s.wall || s.floor + 1}. Training on floor ${s.floor}`, "push", "Try again"]);
     if (s.path && !G.rift) chips.push(["#c9a24b", s.path.name]);
     if (s.curse > 0) chips.push(["#b56bff", `Cursed ${s.curse} floors: double loot`]);
     if (s.moon > 0) chips.push(["#ff3b3b", `Blood Moon: ${s.moon} floors`]);
@@ -381,7 +465,7 @@
     const nextU = G.UNLOCK_TEXT.find((u) => s.best < u[0]), fam = b.id, weak = Object.keys(G.EL).filter((x) => G.EL[x].counter.includes(fam));
     const feed = [nextU ? `<p><b>Floor ${nextU[0]}:</b> ${nextU[1]}</p>` : "", `<p>${G.FAMLABEL[fam]} live here${weak.length ? ". " + weak.map((w) => `<b style="color:${G.EL[w].color}">${G.EL[w].label}</b>`).join(" and ") + " blades are strong against them" : ""}.</p>`, `<p class="dim">Team damage: ${G.fmt(G.partyDps())} per second</p>`].concat(s.log.slice(0, 2).map((l) => `<p class="dim">${esc(l.t)}</p>`)).join("");
     if (feed !== feedKey) { feedKey = feed; $("info").innerHTML = feed; }
-    $("forgeDot").hidden = s.sigils < 1;
+    $("forgeDot").hidden = s.sigils < 1; $("shopDot").hidden = !G.shop.ready();
     $("journalDot").hidden = !(s.omen.sealed > 0 || (G.unlocked("bounty") && s.bounty && s.bounty.list.some((x) => x.n >= x.goal && !x.done)) || G.FEATS.some((x) => !s.feats[x.id] && x.get(s) >= x.goal));
     $("coach").hidden = true; // replaced by the guides
     $("musicBtn").classList.toggle("off", s.set.music === false); $("sfxBtn").classList.toggle("off", !s.set.sound);
@@ -394,7 +478,7 @@
   };
   let slow = 0;
   U.slowTick = function () {
-    if (open === "exp" || open === "rift") dirty[open] = 1;
+    if (open === "exp" || open === "rift" || open === "shop" || open === "gate") dirty[open] = 1;
     if (!$("summon").hidden && !U.pull) { const s = G.s, k = [s.sigils >= 1, s.sigils >= 10, Math.floor(s.sigils), s.pity, s.boon, Date.now() < s.star ? Math.floor((s.star - Date.now()) / 1000) : 0].join("|"); if (k !== U.sumKey) { U.sumKey = k; dirty.summon = 1; } }
     if (++slow % 3 === 0) dirty.journal = 1;
     gfxHint();
@@ -426,6 +510,15 @@
       case "drop": if (e.kind === "rune") { U.toast("Found " + G.runeName(e.rune), "#55c6f8"); dirty.relics = 1; } G.audio.buzz(20); break;
       case "kill": if (e.kind === "gild") U.toast("Golden monster defeated! +1 gem", "#ffd24a"); break;
       case "rebirth": dirty.all = 1; U.toast(`Reborn with ${e.gain} Essence.`, "#ff8a2a"); break;
+      case "realm": { const R = G.REALMS[e.r]; G.render.banner("REALM " + G.ROMAN[e.r], R.tint || "#f3e6c8", R.name); U.toast(`Realm ${G.ROMAN[e.r]}: ${R.name}. Its blades now come from summons.`, R.tint || "#c9a24b"); dirty.all = 1; break; }
+      case "victory": G.render.banner("THE THRONE BELOW", "#ff3b3b", "The dungeon is conquered"); if (e.first) U.modal(`<h2 style="color:#ff3b3b">Floor 1000 cleared</h2><p>Nihl has fallen and the dungeon is yours. +50 gems.</p><p class="hint">Rebirth to climb down again with more Essence, and finish your boss blade collection in the Boss Gate.</p><button class="btn gold big" data-act="modalClose">Continue</button>`, "event"); dirty.all = 1; break;
+      case "gateStart": G.render.banner("BOSS GATE", "#ffab2e", G.gate.boss.name); U.close(); dirty.all = 1; break;
+      case "gateEnd":
+        if (!e.won) U.toast(`${e.name} won this time. Level up and try again.`, "#a39279");
+        else U.modal(`<h2 style="color:#ffab2e">${esc(e.name)} defeated</h2><div class="report"><div><b>+${G.fmt(e.gold)}</b><span>gold</span></div>${e.gems ? `<div><b>+${e.gems}</b><span>gems</span></div>` : ""}</div>${e.blade ? `<p>It dropped its blade!</p><div class="pulls n1"><button class="pcard anim" data-act="tile" data-u="${e.blade.u}" style="--tc:${tcol(e.blade)}">${sw(e.blade.i)}<span class="rar">${G.TIER[e.blade.t].label}</span><span class="nm">${esc(G.bladeName(e.blade))}</span></button></div>` : `<p class="hint">No blade this time. ${G.GATE_PITY - (G.s.gate.dry[e.f] || 0)} more win${G.GATE_PITY - (G.s.gate.dry[e.f] || 0) > 1 ? "s" : ""} and it is guaranteed.</p>`}<div class="rowbtns center"><button class="btn gold big" data-act="modalClose">Continue</button><button class="btn big" data-act="open" data-p="gate">Boss Gate</button></div>`, "event");
+        if (e.blade) G.audio.play("reveal", 3);
+        dirty.all = 1; break;
+      case "armorBreak": U.toast("Armour cracked! It takes full damage now.", "#ffe14a"); break;
       case "riftStart": G.render.banner("DAILY TRIAL", "#b56bff", G.rift.mod.name); dirty.all = 1; break;
       case "riftEnd": U.modal(`<h2>Trial over</h2><p class="hint">${e.wiped ? "Your team was defeated." : "Time is up."}</p><div class="report"><div><b>${e.depth}</b><span>floors</span></div><div><b>+${e.rew}</b><span>gems</span></div></div><button class="btn gold big" data-act="modalClose">Continue</button>`); dirty.all = 1; break;
       case "shrine":
@@ -536,6 +629,37 @@
     gfxLower() { $("advice").hidden = true; const q = G.s.set.gfx === "high" ? "medium" : "low"; G.s.set.gfx = q; applyGfx(); dirty.settings = 1; U.toast("Graphics: " + q[0].toUpperCase() + q.slice(1), "#a8977d"); },
     gfxHintOk() { $("advice").hidden = true; U.open("settings"); },
     openTeam: () => U.open("warband"), openSummon: () => U.openSummon(),
+    // ----- shop -----
+    buyAsk(d) {
+      const it = G.shop.findSku(d.sku); if (!it) return;
+      const what = it.gems ? `${it.gems * (G.shop.isFirst(it.sku) ? 2 : 1)} gems${G.shop.isFirst(it.sku) ? " (first buy doubled)" : ""}` : esc(it.desc);
+      U.modal(`<button class="iconbtn mclose" data-act="modalClose" aria-label="Close">✕</button><h2>${esc(it.name)}</h2><p>${what}</p><div class="checkout"><span>Price</span><b>${usd(it.usd)}</b><span>Charged now</span><b class="free">$0.00</b></div><p class="hint">Test store: this purchase is simulated. You will not be charged and no payment details are needed.</p><div class="rowbtns center"><button class="btn gold big" data-act="buyDo" data-sku="${it.sku}">Buy (test)</button><button class="btn big" data-act="modalClose">Cancel</button></div>`, "event");
+    },
+    buyDo(d, el) {
+      if (el) el.disabled = true;
+      G.shop.checkout(d.sku).then((out) => {
+        dirty.all = 1; G.audio.play(out.blades.length ? "reveal" : "purchase", 3); G.audio.buzz(40);
+        U.modal(`<h2 style="color:#7dff8f">Purchase complete</h2>${rewardHtml(out)}<p class="hint">Test purchase. Nothing was charged.</p><button class="btn gold big" data-act="modalClose">Great</button>`, "event");
+      }).catch((err) => { U.closeModal(); U.toast("Purchase did not go through: " + err.message, "#e0503a"); });
+    },
+    buyItem(d) { const it = G.shop.ITEMS[d.k]; if (G.shop.buyItem(d.k)) { dirty.shop = 1; dirty.gate = 1; G.audio.play("drop"); U.toast(`Bought ${it.name}.`, it.col); } else U.toast("Not enough gems.", "#a39279"); },
+    useItem(d) {
+      const r = G.shop.useItem(d.k); if (!r) return U.toast(d.k === "warp" ? "Finish the trial or boss fight first." : "You have none.", "#a39279");
+      dirty.all = 1; G.audio.play("secret");
+      if (r.k === "warp") U.modal(`<h2 style="color:#62dcff">Time Warp</h2><p class="hint">Two hours of fighting in an instant.</p><div class="report"><div><b>+${G.fmt(r.r.souls)}</b><span>gold</span></div><div><b>+${r.r.floors}</b><span>floors</span></div><div><b>+${r.r.sig}</b><span>gems</span></div></div><button class="btn gold big" data-act="modalClose">Continue</button>`, "event");
+      else U.toast(G.shop.ITEMS[r.k].name + ": " + G.shop.ITEMS[r.k].desc, G.shop.ITEMS[r.k].col);
+    },
+    claimFree() { const r = G.shop.claimFree(); if (r) { dirty.shop = 1; G.audio.play("drop"); U.toast(`Daily gift: +${r.gems} gems`, "#6fd6ff"); } },
+    claimPass() { const r = G.shop.claimPass(); if (r) { dirty.shop = 1; G.audio.play("drop"); U.toast(`Moon Pass: +${r.gems} gems, +${r.key} Boss Key`, "#d9a8ff"); } },
+    // ----- boss gate -----
+    gate(d) { if (!G.startGate(+d.f)) U.toast(G.party.some(Boolean) ? "No Boss Key. Buy one or come back tomorrow." : "Build a team first.", "#a39279"); },
+    leaveGate() { G.leaveGate(); dirty.all = 1; U.toast("Left the Boss Gate. Your key was returned.", "#a39279"); },
+    codexInfo(d) { const w = G.SW[+d.i]; U.toast(`Not found yet: a ${G.TIER[w.rarity].label} ${G.EL[w.element].label} blade${w.sig ? " (Boss Gate only)" : ""}.`, G.TIER[w.rarity].color); },
+    sigInfo(d) {
+      const f = +d.f, B = G.bossAt(f), w = G.SW[G.SIG[f]], own = G.s.blades.find((b) => b.i === w.index);
+      if (own) return U.inspect(own.u);
+      U.modal(`<button class="iconbtn mclose" data-act="modalClose" aria-label="Close">✕</button><div class="bcard" style="--tc:${G.TIER.legendary.color}"><div class="bc-art">${sw(w.index, "big")}</div><div class="rar">Boss blade</div><div class="nm">${esc(w.name)}</div><div class="ty"><i class="eldot" style="background:${G.EL[w.element].color}"></i>${G.EL[w.element].label}</div><div class="ul">Ultimate: <b>${esc(w.specialPower)}</b></div><div class="fl">${esc(w.description)}</div></div><p class="hint">Only ${esc(B.name)} drops this, in the Boss Gate.</p>`, "inspect");
+    },
   };
   U.act = A;
 

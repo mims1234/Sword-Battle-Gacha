@@ -8,9 +8,11 @@
   G.rage = [0, 0, 0, 0, 0];
   G.paused = null; // null | "user" | "shrine" | "smith" | "paths" | "modal"
   G.rift = null;
+  G.gate = null; // Boss Gate fight in progress: { f, boss }
 
-  G.curFloor = () => (G.rift ? G.rift.floor : G.s.floor);
-  const pm = (k, def) => { const p = G.rift ? null : G.s.path; return p && p[k] != null ? p[k] : def; };
+  G.curFloor = () => (G.rift ? G.rift.floor : G.gate ? G.gate.f : G.s.floor);
+  const pm = (k, def) => { const p = G.rift || G.gate ? null : G.s.path; return p && p[k] != null ? p[k] : def; };
+  G.buffOn = (k) => Date.now() < (G.s.buff[k] || 0);
   const hm = (mi) => G.clamp(G.MON[mi].health / 90, 0.5, 1.8);
 
   const ROSTER = {};
@@ -25,9 +27,19 @@
     const e = {
       id: EID++, mi, name: m.type, cat: G.FAM[mi] || "brute", kind: kind || "", age: 0, cd: G.rand(0.9, 1.9), int: 1.6, frz: 0, burn: 0, bdps: 0,
       max: G.ehp(f) * hm(mi) * pm("ehp", 1) * (swarm ? 0.6 : 1),
-      atk: G.eatk(f) * (0.8 + m.difficulty * 0.1) * pm("eatk", 1) * (!G.rift && s.curse > 0 ? 1.5 : 1),
+      atk: G.eatk(f) * (0.8 + m.difficulty * 0.1) * pm("eatk", 1) * (!G.rift && !G.gate && s.curse > 0 ? 1.5 : 1),
+      hue: G.realmHue(f),
     };
-    if (kind === "boss") { e.max *= 9; e.atk *= 1.6; e.int = 1.3; }
+    if (kind === "boss") {
+      e.max *= 9; e.atk *= 1.6; e.int = 1.3;
+      const B = G.bossAt(f);
+      if (B) {
+        e.name = B.name; e.title = B.kind; e.hue = B.hue; e.mech = {}; B.mech.forEach((k) => (e.mech[k] = 1)); e.max *= B.hp; e.atk *= B.lord ? 1.25 : 1;
+        if (e.mech.swift) e.int = 0.8;
+        if (e.mech.armor) e.armor = true;
+        e.brood = 6;
+      }
+    }
     else if (kind === "champ") {
       e.trait = G.pick(G.CHAMP_TRAITS); e.max *= 4; e.atk *= 1.3; e.name = e.trait + " " + m.type;
       if (e.trait === "Molten") e.atk *= 1.5; if (e.trait === "Stoneskin") e.max *= 1.6; if (e.trait === "Frenzied") e.int = 0.95;
@@ -42,8 +54,8 @@
     const f = C.floor, w = C.wave, last = w === C.waves, biome = G.biomeOf(f), list = roster(biome.id).filter((i) => i !== 60 || biome.id !== "demon" || true);
     if (C.hollow && last) return [makeEnemy(59, f, "hollow")];
     if (C.boss && last) {
-      const adds = list.slice(0, Math.max(2, Math.floor(list.length / 2)));
-      return [makeEnemy(biome.boss, f, "boss"), makeEnemy(G.pick(adds), f), makeEnemy(G.pick(adds), f)];
+      const adds = list.slice(0, Math.max(2, Math.floor(list.length / 2))), B = G.bossAt(f);
+      return [makeEnemy(B ? B.mi : biome.boss, f, "boss"), makeEnemy(G.pick(adds), f), makeEnemy(G.pick(adds), f)];
     }
     const swarm = G.rift && G.rift.mod.id === "swarm";
     const n = swarm ? 5 : 3 + (w % 5 === 0 ? 1 : 0), out = [];
@@ -51,7 +63,7 @@
     const reach = Math.max(2, Math.ceil(list.length * (0.35 + 0.65 * (w / C.waves))));
     for (let i = 0; i < n; i++) {
       const mi = list[Math.floor(Math.pow(Math.random(), 1.4) * reach)];
-      const gild = !G.rift && G.s.best >= 3 && Math.random() < 1 / 600;
+      const gild = !G.rift && !G.gate && G.s.best >= 3 && Math.random() < 1 / 600;
       out.push(makeEnemy(mi, f, gild ? "gild" : ""));
     }
     if ((C.event === "champion" || (!G.rift && G.s.moon > 0)) && w === Math.ceil(C.waves / 2)) out[0] = makeEnemy(G.pick(list.slice(Math.floor(list.length / 2))), f, "champ");
@@ -74,9 +86,10 @@
   // ---------- floors ----------
   G.startFloor = function (delay) {
     const s = G.s, f = G.curFloor();
-    const C = { floor: f, wave: 0, waves: G.rift ? 5 : pm("waves", G.WAVES), enemies: [], blades: buildBlades(null), state: "gap", timer: delay || 0.9, t: 0, ft: 0, pend: [], event: null, impWave: 0, hollow: false, boss: f % 10 === 0 && !G.rift };
+    const C = { floor: f, wave: 0, waves: G.rift ? 5 : G.gate ? 1 : pm("waves", G.WAVES), enemies: [], blades: buildBlades(null), state: "gap", timer: delay || 0.9, t: 0, ft: 0, pend: [], event: null, impWave: 0, hollow: false, boss: f % 10 === 0 && !G.rift };
     G.combat = C;
-    if (!G.rift && s.omen.pend && s.omen.pend.at <= f) {
+    if (!G.rift && !G.gate && f > G.REALM_SIZE && (s.seenRealm || 0) < G.realmOf(f)) { s.seenRealm = G.realmOf(f); emit("realm", { r: G.realmOf(f) }); }
+    if (!G.rift && !G.gate && s.omen.pend && s.omen.pend.at <= f) {
       const id = s.omen.pend.id; s.omen.pend = null;
       if (id === "imp") { C.event = "imp"; C.impWave = G.randInt(2, C.waves - 1); }
       else if (id === "champion") { C.event = "champion"; emit("champion"); }
@@ -112,6 +125,7 @@
   function floorCleared() {
     const s = G.s;
     if (G.rift) { G.rift.floor++; emit("floor", { f: G.rift.floor - 1, rift: true }); G.startFloor(0.6); return; }
+    if (G.gate) return endGate(true);
     const f = s.floor, boss = f % 10 === 0;
     s.stat.floors++; G.track("floors", 1);
     if (f > s.runSig) {
@@ -124,6 +138,12 @@
     if (s.curse > 0 && --s.curse === 0) emit("curseEnd");
     if (s.moon > 0 && --s.moon === 0) { s.sigils += 10; emit("moonEnd"); }
     emit("floor", { f, boss });
+    if (f >= G.MAX_FLOOR) {
+      // The bottom of the dungeon. Stay here; rebirth starts the climb down again, stronger.
+      const first = !s.won; s.won = true; s.hold = true; s.best = G.MAX_FLOOR;
+      emit("victory", { first }); if (first) { s.sigils += 50; G.log("The Throne Below has fallen. +50 gems", "#ff3b3b"); }
+      G.startFloor(2.5); return;
+    }
     if (!s.hold) {
       s.floor = f + 1;
       if (s.floor > s.runBest) s.runBest = s.floor;
@@ -138,6 +158,7 @@
     const s = G.s;
     s.stat.wipes++;
     if (G.rift) { endRift(true); return; }
+    if (G.gate) { endGate(false); return; }
     const f = s.floor;
     s.wallHits = s.wall === f ? (s.wallHits || 0) + 1 : 1;
     s.wall = f; s.hold = true; s.floor = Math.max(1, f - 1);
@@ -179,6 +200,7 @@
   function hurt(C, e, dmg, h) {
     if (e.hp <= 0) return;
     if (e.trait === "Spectral" && !h.dot && Math.random() < 0.25) { emit("miss", { eid: e.id }); return; }
+    if (e.armor) dmg *= 0.5;
     e.hp -= dmg; G.s.stat.dmg += dmg;
     if (!h.dot) emit("hit", { eid: e.id, dmg, crit: h.crit, counter: h.counter, el: h.el, sub: h.sub });
     if (e.hp <= 0) kill(C, e, h);
@@ -190,7 +212,7 @@
     let souls = 0;
     if (!G.rift) {
       const mul = e.kind === "boss" ? 10 : e.kind === "champ" ? 4 : e.kind === "gild" ? 10 : e.kind === "imp" ? 6 : e.kind === "hollow" ? 20 : 1;
-      souls = G.soulBase(f) * hm(e.mi) * G.mod.souls * pm("souls", 1) * (s.moon > 0 ? 2 : 1) * (s.curse > 0 ? 2 : 1) * mul;
+      souls = G.soulBase(f) * hm(e.mi) * G.mod.souls * pm("souls", 1) * (s.moon > 0 && !G.gate ? 2 : 1) * (s.curse > 0 && !G.gate ? 2 : 1) * (G.buffOn("gold") ? 2 : 1) * mul;
       s.souls += souls; s.kills++;
       if (e.kind !== "imp" && e.kind !== "hollow") { s.mk[e.mi] = (s.mk[e.mi] || 0) + 1; G.track("kills", 1, e.cat); }
       if (e.kind === "gild") { s.gild[e.mi] = 1; s.sigils += 1; emit("drop", { kind: "sigil", n: 1, eid: e.id }); G.log("Gilded " + G.MON[e.mi].type + " slain: +1 gem", "#ffd24a"); }
@@ -206,7 +228,7 @@
     const st = bl.p.st, tg = pickTarget(C);
     if (!tg) return;
     const crit = Math.random() < G.mod.crit + st.crit, counter = G.EL[st.el].counter.indexOf(tg.cat) >= 0;
-    const dmg = st.atk * G.mod.dmg * (crit ? st.cdmg : 1) * (counter ? 1.5 : 1) * (1 + (st.slay[tg.cat] || 0)) * riftMul(st);
+    const dmg = st.atk * G.mod.dmg * (crit ? st.cdmg : 1) * (counter ? 1.5 : 1) * (1 + (st.slay[tg.cat] || 0)) * riftMul(st) * (G.buffOn("dmg") ? 1.5 : 1);
     emit("strike", { slot: bl.slot, eid: tg.id, crit, el: st.el });
     C.pend.push({ d: 0.14, eid: tg.id, dmg, crit, counter, slot: bl.slot, el: st.el, main: true });
     if (G.unlocked("ult")) G.rage[bl.slot] = Math.min(100, G.rage[bl.slot] + 14 * st.rage);
@@ -228,12 +250,13 @@
   function applyUlt(C, h) {
     const bl = C.blades[h.slot]; if (!bl) return;
     const st = bl.p.st, el = st.el;
-    const base = st.atk * G.mod.dmg * st.ultMul * (h.manual ? 1.25 : 1) * riftMul(st) * (el === "lightning" ? 1.3 : el === "poison" ? 1.15 : 1);
+    const base = st.atk * G.mod.dmg * st.ultMul * (h.manual ? 1.25 : 1) * riftMul(st) * (el === "lightning" ? 1.3 : el === "poison" ? 1.15 : 1) * (G.buffOn("dmg") ? 1.5 : 1);
     emit("ultHit", { slot: h.slot, el, named: st.named });
     const tgs = st.named ? aliveEnemies(C) : [pickTarget(C)].filter(Boolean);
     tgs.forEach((e) => {
       const counter = G.EL[el].counter.indexOf(e.cat) >= 0;
       let d = base * (counter ? 1.5 : 1) * (1 + (st.slay[e.cat] || 0));
+      if (e.armor) { e.armor = false; emit("armorBreak", { eid: e.id }); }
       if (el === "void" && e.kind !== "boss" && e.kind !== "hollow" && e.hp / e.max < 0.2) d = e.hp;
       if (el === "ice") e.frz = e.kind === "boss" || e.kind === "hollow" ? 0.8 : 2;
       if (el === "fire") { e.burn = 3; e.bdps = Math.max(e.bdps, (base * 0.3) / 3); }
@@ -251,6 +274,7 @@
     if (T.void && e.kind !== "boss" && e.kind !== "hollow" && e.hp / e.max < 0.12) dmg = Math.max(dmg, e.hp);
     hurt(C, e, dmg, h);
     if (!st) return;
+    if (e.mech && e.mech.thorns && bl && !bl.dead && Math.random() < 0.2) { const t = e.atk * 0.35; bl.hp -= t; emit("ehit", { eid: e.id, slot: bl.slot, dmg: t }); if (bl.hp <= 0) { bl.hp = 0; bl.dead = true; emit("break", { slot: bl.slot }); } }
     const others = aliveEnemies(C).filter((o) => o !== e);
     if (st.cleave && others.length) hurt(C, others[0], dmg * st.cleave, { el: h.el, sub: true });
     if (T.lightning && others.length && Math.random() < 0.25) hurt(C, G.pick(others), dmg * 0.5, { el: "lightning", sub: true });
@@ -263,7 +287,7 @@
     if (!pool.length) pool = C.blades.filter((b) => b && !b.dead);
     if (!pool.length) return;
     const bl = G.pick(pool), enrage = 1 + Math.max(0, C.ft - 25) * 0.08;
-    const dmg = e.atk * enrage;
+    const dmg = e.atk * enrage * (e.mech && e.mech.wrath ? 1 + (1 - e.hp / e.max) * 1.2 : 1);
     bl.hp -= dmg;
     if (G.unlocked("ult")) G.rage[bl.slot] = Math.min(100, G.rage[bl.slot] + 5);
     emit("ehit", { eid: e.id, slot: bl.slot, dmg });
@@ -295,6 +319,13 @@
       e.age += dt;
       if (e.burn > 0) { e.burn -= dt; hurt(C, e, e.bdps * dt, { dot: true, el: "fire" }); if (e.hp <= 0) continue; }
       if (e.trait === "Vampiric") e.hp = Math.min(e.max, e.hp + e.max * 0.015 * dt);
+      if (e.mech) {
+        if (e.mech.regen) e.hp = Math.min(e.max, e.hp + e.max * 0.012 * dt);
+        if (e.mech.brood && (e.brood -= dt) <= 0) {
+          e.brood = 9;
+          if (aliveEnemies(C).length < 4) { const B = G.bossAt(C.floor), add = makeEnemy(roster(B ? B.fam : G.biomeOf(C.floor).id)[0], C.floor); C.enemies.push(add); emit("brood", { eid: add.id }); }
+        }
+      }
       if (e.kind === "imp") { e.life -= dt; if (e.life <= 0) { e.gone = true; emit("impFled", { eid: e.id }); } continue; }
       if (e.frz > 0) { e.frz -= dt; continue; }
       if (e.age > 0.7) { e.cd -= dt; if (e.cd <= 0) { e.cd = e.int; enemyAttack(C, e); } }
@@ -382,8 +413,10 @@
     return q < G.RATES.epic ? "epic" : q < G.RATES.epic + G.RATES.rare ? "rare" : "common";
   }
   function forgeOne(tier) {
-    const s = G.s, base = tier === "mythic" ? "legendary" : tier;
-    let pool = G.SW.filter((w) => w.rarity === base);
+    const s = G.s, base = tier === "mythic" ? "legendary" : tier, top = G.realmOf(s.best);
+    // Mostly blades of the deepest realm reached, sometimes one from an earlier realm. Boss blades never come from summons.
+    const realm = top > 0 && Math.random() < 0.3 ? Math.floor(Math.random() * top) : top;
+    let pool = G.SW.filter((w) => w.rarity === base && !w.sig && w.realm === realm);
     const feat = pool.filter((w) => w.element === G.bannerEl());
     if (feat.length && Math.random() < 0.5) pool = feat;
     const b = G.newBlade(G.pick(pool).index, tier);
@@ -536,6 +569,37 @@
     G.startFloor(1.5);
   }
 
+  // ---------- boss gate ----------
+  // Fight any boss you have already beaten, alone, for a chance at its signature blade.
+  // Entry: one free try a day, then Boss Keys (from achievements and the shop).
+  G.GATE_CHANCE = 0.3; G.GATE_PITY = 4; // the 4th win without the blade always drops it
+  G.gateFree = () => G.s.gate.day !== G.day();
+  G.gateOpen = (f) => G.unlocked("gate") && G.SIG[f] != null && f < G.s.best;
+  G.startGate = function (f) {
+    const s = G.s;
+    if (!G.gateOpen(f) || G.rift || G.gate || !G.party.some(Boolean)) return false;
+    let paid = false;
+    if (G.gateFree()) s.gate.day = G.day(); else if (s.items.key > 0) { s.items.key--; paid = true; } else return false;
+    G.gate = { f, boss: G.bossAt(f), paid }; if (G.paused === "user") G.paused = null;
+    G.startFloor(1.2); emit("gateStart", { f }); return true;
+  };
+  function endGate(won) {
+    const s = G.s, f = G.gate.f, B = G.gate.boss, idx = G.SIG[f], r = { won, f, name: B.name };
+    G.gate = null;
+    if (won) {
+      s.gate.wins++;
+      const dry = s.gate.dry[f] || 0, got = dry + 1 >= G.GATE_PITY || Math.random() < G.GATE_CHANCE;
+      r.gold = Math.ceil(G.soulBase(f) * 200 * G.mod.souls); s.souls += r.gold;
+      if (got) { const b = G.newBlade(idx, Math.random() < 0.08 ? "mythic" : "legendary"); s.blades.push(b); s.gate.dry[f] = 0; r.blade = b; G.log("Boss blade: " + G.bladeName(b), "#ffab2e"); }
+      else { s.gate.dry[f] = dry + 1; r.gems = 2; s.sigils += 2; }
+      G.track("boss", 1);
+    }
+    emit("gateEnd", r);
+    G.startFloor(1.5);
+  }
+  // Leaving early (or closing the game mid-fight) gives the key back.
+  G.leaveGate = function () { if (!G.gate) return; if (G.gate.paid) G.s.items.key++; else G.s.gate.day = ""; G.gate = null; G.startFloor(1); };
+
   // ---------- away time ----------
   G.estimate = function (f) {
     const dps = Math.max(0.01, G.partyDps()), hpAll = G.partyHp();
@@ -545,12 +609,12 @@
     const waves = pm("waves", G.WAVES);
     return { ok, t: waves * (tKill + 1.4) + 1, souls: G.soulBase(f) * waves * 3.2 * G.mod.souls * pm("souls", 1) };
   };
-  G.offline = function (secs) {
-    const s = G.s, cap = G.mod.offCap * 3600, used = Math.min(secs, cap);
-    let left = used * G.mod.offRate, f = s.floor, souls = 0, sig = 0, cleared = 0, guard = 0;
+  G.offline = function (secs, full) {
+    const s = G.s, cap = full ? secs : G.mod.offCap * 3600, used = Math.min(secs, cap);
+    let left = used * (full ? 1 : G.mod.offRate), f = s.floor, souls = 0, sig = 0, cleared = 0, guard = 0;
     while (left > 0 && guard++ < 400) {
       const e = G.estimate(f);
-      if (s.hold || !e.ok || f - s.floor >= 40) {
+      if (s.hold || !e.ok || f - s.floor >= 40 || f >= G.MAX_FLOOR) {
         const g = G.estimate(Math.max(1, e.ok ? f : f - 1)); const n = left / g.t; souls += n * g.souls; cleared += n; left = 0; break;
       }
       if (left < e.t) { souls += (left / e.t) * e.souls; left = 0; break; }

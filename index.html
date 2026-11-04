@@ -10,7 +10,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="css/game.css?v=4.15" />
+        <link rel="stylesheet" href="css/game.css?v=5.1" />
     </head>
     <body>
         <div id="boot" class="boot">
@@ -30,7 +30,7 @@
                 <nav id="deskNav" class="desknav" aria-label="Screens"></nav>
                 <div class="cur">
                     <span class="c-gold" title="Gold: level up your team"><i class="ic gold"></i><b id="souls">0</b></span>
-                    <button class="c-gem" data-act="open" data-p="forge" title="Gems: summon new blades"><i class="ic gem"></i><b id="sigils">0</b></button>
+                    <button class="c-gem" data-act="open" data-p="forge" title="Gems: summon new blades"><i class="ic gem"></i><b id="sigils">0</b></button><button class="c-plus" data-act="open" data-p="shop" title="Shop" aria-label="Shop">+</button>
                     <span class="c-ess" id="embWrap" title="Essence: rebirth upgrades" hidden><i class="ic ess"></i><b id="embers">0</b></span>
                 </div>
                 <button class="omen" id="omenBtn" data-act="omenInfo" title="Event candle" aria-label="Event candle"><span class="wick"></span><span class="flame" id="flame"></span></button>
@@ -68,6 +68,7 @@
                 <button data-act="open" data-p="warband" data-tab="warband"><i>⛨</i>Team</button>
                 <button data-act="open" data-p="forge" data-tab="forge"><i>◆</i>Summon<em id="forgeDot" hidden></em></button>
                 <button data-act="open" data-p="journal" data-tab="journal"><i>✎</i>Quests<em id="journalDot" hidden></em></button>
+                <button data-act="open" data-p="shop" data-tab="shop"><i>⛁</i>Shop<em id="shopDot" hidden></em></button>
                 <button data-act="open" data-p="more" data-tab="more"><i>☰</i>More</button>
             </nav>
 
@@ -77,17 +78,21 @@
             <div id="modal" class="modal" hidden><div class="modal-card" id="modalCard"></div></div>
         </div>
 
-        <script src="js/data.swords.js?v=4.15"></script>
-        <script src="js/data.monsters.js?v=4.15"></script>
-        <script src="js/data.game.js?v=4.15"></script>
-        <script src="js/state.js?v=4.15"></script>
-        <script src="js/sim.js?v=4.15"></script>
-        <script src="js/render.js?v=4.15"></script>
-        <script src="assets/music/tracks.js?v=4.15"></script>
-        <script src="assets/sfx/sfx.js?v=4.15"></script>
-        <script src="js/audio.js?v=4.15"></script>
-        <script src="js/ui.js?v=4.15"></script>
-        <script src="js/guide.js?v=4.15"></script>
-        <script src="js/main.js?v=4.15"></script>
+        <script src="js/data.swords.js?v=5.1"></script>
+        <script src="js/data.monsters.js?v=5.1"></script>
+        <script src="js/data.game.js?v=5.1"></script>
+        <script src="js/state.js?v=5.1"></script>
+        <script src="js/data.blade-art.js?v=5.1"></script>
+        <script src="js/data.realms.js?v=5.1"></script>
+        <script src="js/art.blades.js?v=5.1"></script>
+        <script src="js/sim.js?v=5.1"></script>
+        <script src="js/shop.js?v=5.1"></script>
+        <script src="js/render.js?v=5.1"></script>
+        <script src="assets/music/tracks.js?v=5.1"></script>
+        <script src="assets/sfx/sfx.js?v=5.1"></script>
+        <script src="js/audio.js?v=5.1"></script>
+        <script src="js/ui.js?v=5.1"></script>
+        <script src="js/guide.js?v=5.1"></script>
+        <script src="js/main.js?v=5.1"></script>
     </body>
 </html>

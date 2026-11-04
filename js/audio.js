@@ -62,7 +62,7 @@
   // ---------- recorded sound effects (assets/sfx, made by tools/make-music.mjs) ----------
   // Each file gets a small pool of <audio> players so quick repeats can overlap; hits get a
   // slightly random pitch so a long fight never sounds like one sample on repeat.
-  const SFX_MAP = { hit: "hit", crit: "hit", kill: "kill", boss: "boss", bossDown: "boss_down", ult: "ult", drop: "drop", level: "level", click: "click", wipe: "wipe", omen: "omen", secret: "secret", charge: "summon_charge", rebirth: "rebirth", unlock: "unlock" };
+  const SFX_MAP = { victory: "victory", realm: "realm", gateWin: "gate_win", purchase: "purchase", hit: "hit", crit: "hit", kill: "kill", boss: "boss", bossDown: "boss_down", ult: "ult", drop: "drop", level: "level", click: "click", wipe: "wipe", omen: "omen", secret: "secret", charge: "summon_charge", rebirth: "rebirth", unlock: "unlock" };
   // Relative loudness per effect; frequent ones (hits, clicks) sit lowest. Scaled by the Effects volume.
   const SFX_VOL = { hit: 0.5, crit: 0.7, kill: 0.55, click: 0.4, drop: 0.6, level: 0.65, ult: 0.7 };
   const pools = {};
@@ -73,7 +73,7 @@
     return el;
   }
   // Big moments get the stage to themselves: the music fades out under them and comes back after.
-  const DUCK = { reveal_3: 1, reveal_4: 1, summon_charge: 1, boss: 1, boss_down: 1, rebirth: 1, unlock: 1, wipe: 1 };
+  const DUCK = { reveal_3: 1, reveal_4: 1, reveal_5: 1, summon_charge: 1, boss: 1, boss_down: 1, rebirth: 1, unlock: 1, wipe: 1, victory: 1, realm: 1, gate_win: 1 };
   // When the game is served from a website, each effect is decoded once and played straight through
   // Web Audio: far lighter on phones than keeping dozens of <audio> players. From a local file the
   // browser blocks that, so <audio> players are used, created only when a sound first plays.
@@ -106,7 +106,9 @@
   A.play = function (name, arg) {
     if (!G.s.set.sound) return;
     if (name === "hit" || name === "crit") { const n = performance.now(); if (n - lastHit < ((G.s.set.gfx || "low") === "low" ? 110 : 70)) return; lastHit = n; }
-    let rec = name === "reveal" ? (arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1") : SFX_MAP[name];
+    // One reveal per rarity (Common 1 ... Mythic 5); older sound sets fall back to the nearest one they have.
+    const F = window.SFX_FILES || {};
+    let rec = name === "reveal" ? ["reveal_" + (Math.min(4, arg || 0) + 1), arg >= 3 ? "reveal_4" : arg === 2 ? "reveal_3" : "reveal_1"].find((k) => F[k]) : SFX_MAP[name];
     // Strikes sound like the blade that made them: each element has its own family of hits.
     if (name === "hit" || name === "crit") { const k = name + "_" + (arg || "steel"); rec = (window.SFX_FILES || {})[k] ? k : name + "_steel"; }
     const rate = name === "hit" || name === "crit" ? 0.94 + Math.random() * 0.12 : name === "kill" ? 0.92 + Math.random() * 0.16 : 1;
@@ -129,6 +131,9 @@
       case "omen": case "champion": A.play("omen"); break;
       case "rebirth": A.play("rebirth"); break;
       case "unlock": A.play("unlock"); break;
+      case "realm": A.play("realm"); break;
+      case "victory": A.play("victory"); break;
+      case "gateEnd": if (e.won && !e.blade) A.play("gateWin"); break;
     }
   };
   // ---------- area music: slow, calm, a little tense ----------
@@ -219,9 +224,18 @@
   // Start downloading the track for where the player is before they tap, so it plays the moment they do.
   const preEls = {};
   function currentTrack() {
-    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat, area = G.rift ? "demon" : G.biomeOf(G.curFloor()).id;
+    const tracks = window.MUSIC_TRACKS || {}, C0 = G.combat, f = G.curFloor(), area = G.rift ? "demon" : G.biomeOf(f).id;
     const tense = !!((C0 && C0.boss) || G.s.moon > 0 || (C0 && C0.hollow) || G.rift);
-    const id = tense && tracks.boss ? "boss" : tracks[area] ? area : null;
+    const screen = G.ui && G.ui.screen ? G.ui.screen() : null, B = C0 && C0.boss ? G.bossAt(f) : null;
+    // Screens first (summon altar, shop), then fights (final boss, realm lords, the gate), then the area.
+    // In realms II-X the realm's own theme takes turns with the area themes, one 10-floor area each.
+    const realm = G.realmOf(f), rt = "realm_" + realm, alt = realm > 0 && tracks[rt] && Math.floor((f - 1) / 10) % 2 === 0;
+    const order = [
+      screen === "summon" && "summon", screen === "shop" && "shop",
+      B && B.final && "throne", B && B.lord && "lord", G.gate && "gate",
+      tense && "boss", alt && rt, area,
+    ];
+    const id = order.find((k) => k && tracks[k]) || null;
     return id ? { id, src: tracks[id] } : null;
   }
   A.preloadMusic = function () {

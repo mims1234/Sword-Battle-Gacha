@@ -1,7 +1,7 @@
 // ===================== STATE, SAVE, DERIVED STATS =====================
 (function () {
   const G = window.G;
-  G.VERSION = "4.14";
+  G.VERSION = "5.1";
   G.SAVE_KEY = "idle_blade_master_v4";
   G.V3_KEY = "idle_blade_master_v3";
   G.SW = window.SWORDS_DATA || [];
@@ -21,10 +21,11 @@
     };
   };
   G.hash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
-  const UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+  const UNITS = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Od", "Nd", "Vg"];
   G.fmt = function (n) {
     if (!isFinite(n)) return "∞";
     if (n < 1000) return String(Math.floor(n));
+    if (n >= 1e66) return n.toExponential(2).replace("+", "");
     const e = Math.min(UNITS.length - 1, Math.floor(Math.log10(n) / 3));
     const v = n / Math.pow(1000, e);
     return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + UNITS[e];
@@ -51,7 +52,11 @@
       v: 4, souls: 0, sigils: 10, embers: 0, runes: [], blades: [], party: [null, null, null, null, null], lv: [0, 0, 0, 0, 0],
       floor: 1, best: 1, runBest: 1, runSig: 0, hold: false, wall: 0, pity: 0, pulls: 0, kills: 0, mk: {}, gild: {}, con: {}, rebirths: 0,
       bounty: null, feats: {}, exp: [], rift: { day: "", best: 0 }, omen: { since: 0, pend: null, sealed: 0 }, moon: 0, curse: 0, path: null,
-      boon: false, star: 0, secrets: 0, uid: 1, log: [], tips: {},
+      boon: false, star: 0, secrets: 0, uid: 1, log: [], tips: {}, won: false,
+      // Shop and Boss Gate. Items are what a real store would sell later; today they are earned or bought in the test store.
+      items: { key: 0, elixir: 0, tonic: 0, warp: 0, charm: 0 }, buff: { gold: 0, dmg: 0 },
+      shop: { receipts: [], first: {}, once: {}, passEnd: 0, passDay: "", freeDay: "" },
+      gate: { day: "", wins: 0, dry: {} },
       set: { sound: true, music: true, musicVol: 0.9, sfxVol: 0.3, volVer: 2, gfx: G.deviceGfx(), gfxVer: 2, calm: false, autoUlt: true, speed: 1 },
       stat: { dmg: 0, ults: 0, legend: 0, wipes: 0, imps: 0, floors: 0, online: 0 },
       last: Date.now(), born: Date.now(),
@@ -70,9 +75,12 @@
     const base = G.SW[b.i].name;
     if (b.t === "mythic") return base + ", Unbound";
     const p = b.a[0] && b.t !== "common" ? G.AFFIX[b.a[0][0]].pre + " " : "";
-    const s = b.a[1] ? " " + G.AFFIX[b.a[1][0]].suf : "";
+    // Named blades (deeper realms, boss blades) already carry a title, so they skip the suffix.
+    const w = G.SW[b.i], titled = base.indexOf(",") >= 0 || base.indexOf("'") >= 0 || (w.cell != null && G.TIER[w.rarity].rank >= 2);
+    const s = b.a[1] && !titled ? " " + G.AFFIX[b.a[1][0]].suf : "";
     return p + base + s;
   };
+  G.sigOwned = () => { const seen = {}; G.s.blades.forEach((b) => { if (G.SW[b.i] && G.SW[b.i].sig) seen[b.i] = 1; }); return Object.keys(seen).length; };
   G.blade = (u) => (u == null ? null : G.s.blades.find((b) => b.u === u) || null);
   G.inParty = (u) => G.s.party.indexOf(u) >= 0;
   G.onExpedition = (u) => G.s.exp.some((e) => e.u.indexOf(u) >= 0);
@@ -84,14 +92,16 @@
   // ---------- scaling ----------
   G.slotCost = (L) => Math.floor(8 * Math.pow(1.15, L));
   G.slotMult = (L) => Math.pow(1.08, L);
-  G.ehp = (f) => 48 * Math.pow(1.125, f - 1);
-  G.eatk = (f) => 2.2 * Math.pow(1.11, f - 1);
+  // Floors 1-100 keep the original curve. Past 100 monsters grow 7% a floor, the same rate as gold,
+  // so each realm is beaten with that realm's blades rather than with levels alone.
+  G.ehp = (f) => (f <= 100 ? 48 * Math.pow(1.125, f - 1) : 48 * Math.pow(1.125, 99) * Math.pow(1.07, f - 100));
+  G.eatk = (f) => (f <= 100 ? 2.2 * Math.pow(1.11, f - 1) : 2.2 * Math.pow(1.11, 99) * Math.pow(1.07, f - 100));
   G.soulBase = (f) => 1.0 * Math.pow(1.07, f - 1);
   G.emberGain = (f) => Math.floor(Math.pow(Math.max(0, f) / 10, 1.6));
 
   // ---------- derived ----------
   G.bladeStat = function (b, lv) {
-    const sw = G.SW[b.i], tm = b.t === "mythic" ? 1.6 : 1, star = 1 + 0.25 * b.s, L = G.slotMult(lv || 0);
+    const sw = G.SW[b.i], tm = (b.t === "mythic" ? 1.6 : 1) * (sw.pow || 1), star = 1 + 0.25 * b.s, L = G.slotMult(lv || 0);
     const A = {}; b.a.forEach((x) => (A[x[0]] = (A[x[0]] || 0) + x[1]));
     const R = b.r ? { [b.r.k]: G.RUNE[b.r.k].v[b.r.t - 1] } : {};
     const st = {
@@ -219,8 +229,8 @@
   // the game reads into a valid shape before use.
   G.sanitize = function () {
     const s = G.s, f = G.fresh(), num = (v, d, lo, hi) => { v = Number(v); if (!isFinite(v)) v = d; return Math.min(hi == null ? 1e300 : hi, Math.max(lo == null ? 0 : lo, v)); };
-    for (const k of ["souls", "sigils", "embers", "pity", "pulls", "kills", "rebirths", "secrets", "star", "moon", "curse", "wall", "wallHits", "runSig"]) s[k] = num(s[k], f[k] || 0);
-    for (const k of ["floor", "best", "runBest"]) s[k] = Math.floor(num(s[k], 1, 1, 3000));
+    for (const k of ["souls", "sigils", "embers", "pity", "pulls", "kills", "rebirths", "secrets", "star", "moon", "curse", "wall", "wallHits", "runSig", "seenRealm"]) s[k] = num(s[k], f[k] || 0);
+    for (const k of ["floor", "best", "runBest"]) s[k] = Math.floor(num(s[k], 1, 1, G.MAX_FLOOR || 1000));
     s.best = Math.max(s.best, s.floor, s.runBest); s.pity = Math.min(s.pity, G.PITY_HARD - 1); s.uid = Math.floor(num(s.uid, 1, 1));
     s.blades = (Array.isArray(s.blades) ? s.blades : []).filter((b) => b && G.SW[b.i] && G.TIER[b.t]).map((b) => ({
       u: Math.floor(num(b.u, 0)), i: Math.floor(b.i), t: b.t, s: Math.floor(num(b.s, 0, 0, 5)), lock: !!b.lock,
@@ -247,6 +257,16 @@
     const P = s.path && G.PATHS.find((p) => p.id === s.path.id); s.path = P ? { id: P.id, name: P.name, souls: P.souls, ehp: P.ehp, eatk: P.eatk, waves: P.waves, omen: P.omen } : null;
     s.rift = { day: typeof obj(s.rift).day === "string" ? s.rift.day : "", best: Math.floor(num(obj(s.rift).best, 0)) };
     s.bounty = s.bounty && Array.isArray(s.bounty.list) && s.bounty.list.every((b) => b && G.BOUNTY_POOL.some((t) => t.k === b.k) && G.FAMLABEL[b.fam]) ? s.bounty : null;
+    const it = obj(s.items); s.items = {}; for (const k in f.items) s.items[k] = Math.floor(num(it[k], 0, 0, 1e6));
+    const bf = obj(s.buff); s.buff = { gold: num(bf.gold, 0), dmg: num(bf.dmg, 0) };
+    const sh = obj(s.shop), str = (v) => (typeof v === "string" ? v.slice(0, 20) : "");
+    s.shop = { receipts: (Array.isArray(sh.receipts) ? sh.receipts : []).filter((r) => r && typeof r.sku === "string" && /^[a-z0-9_]{1,30}$/.test(r.sku)).slice(-50).map((r) => ({ sku: r.sku, t: num(r.t, 0), usd: num(r.usd, 0, 0, 1000), id: str(r.id) })),
+      first: {}, once: {}, passEnd: num(sh.passEnd, 0), passDay: str(sh.passDay), freeDay: str(sh.freeDay) };
+    for (const k in obj(sh.first)) if (/^[a-z0-9_]{1,30}$/.test(k)) s.shop.first[k] = 1;
+    for (const k in obj(sh.once)) if (/^[a-z0-9_]{1,30}$/.test(k)) s.shop.once[k] = 1;
+    const gt = obj(s.gate); s.gate = { day: str(gt.day), wins: Math.floor(num(gt.wins, 0)), dry: {} };
+    for (const k in obj(gt.dry)) if (G.SIG && G.SIG[k] != null) s.gate.dry[k] = Math.floor(num(gt.dry[k], 0, 0, 10));
+    s.won = !!s.won;
     s.boon = !!s.boon; s.hold = !!s.hold; s.last = num(s.last, Date.now()); s.born = num(s.born, Date.now());
   };
 

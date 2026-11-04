@@ -34,22 +34,48 @@ const MUSIC = {
   dragon: "Frozen mountain ridge with dragon bones: airy wordless string pad, glass celesta, soft wind, A minor, 58 bpm, vast, cold and serene.",
   holy: "Ruined cathedral at dusk: soft pipe organ, solo violin, gentle bells, G minor, 54 bpm, sacred, melancholy and peaceful.",
   boss: "Boss fight that still sits in the background: driving low strings ostinato, steady taiko, dark brass stabs, D minor, 96 bpm, tense and heroic, not loud or busy.",
+  // ---- v5: screens and fights ----
+  summon: "Summoning altar in a hidden shrine: shimmering harp arpeggios and celesta over a soft wordless choir pad and a low cello drone, slow rising anticipation that never fully resolves, E minor, 70 bpm, magical, hopeful and mysterious.",
+  shop: "A travelling merchant's lantern-lit stall deep in the dungeon: warm nylon guitar and lute, soft reed organ, light hand drum, D dorian, 84 bpm, cosy, friendly and a little sly.",
+  gate: "Arena of fallen champions behind a great iron gate: steady low string ostinato, taiko, solemn horns and a distant wordless choir, E phrygian, 92 bpm, determined and grim but restrained.",
+  lord: "Realm Lord battle: relentless cello and double-bass ostinato, heavy taiko, dark brass calls answered by a wordless choir, C minor, 104 bpm, epic and dangerous but still sitting under gameplay.",
+  throne: "Final battle against the king beneath the world: slow massive wordless choir chords, pipe organ, low brass, timpani rolls and a mournful solo violin, B minor, 88 bpm, apocalyptic, sorrowful and heroic.",
+  // ---- v5: one theme per deeper realm (played in turn with the area themes) ----
+  realm_1: "The Ember Halls, a forge city of cooling lava: low cello and bowed bass, soft anvil-like metallic percussion, warm French horn swells, A phrygian, 66 bpm, smouldering and proud.",
+  realm_2: "The Frostbound Vaults: music-box celesta, bowed crystal glasses, airy strings, soft harp, B minor, 60 bpm, crystalline, lonely and beautiful.",
+  realm_3: "The Sunless Sea, a drowned city under black water: slow harp and felt piano with long echoes, low cello glissandi, soft frame drum, F sharp minor, 58 bpm, deep, slow and hypnotic.",
+  realm_4: "The Bone Cathedral: slow low wordless choir, soft pipe organ, dry wooden clicks, viola drone, D minor, 52 bpm, solemn, ancient and haunting.",
+  realm_5: "The Storm Abyss, a chasm of endless lightning: tremolo strings, distant timpani like thunder, wooden flute melody over rumbling low brass, G minor, 80 bpm, restless and windswept but not loud.",
+  realm_6: "The Verdant Rot, an overgrown fungal jungle: kalimba, marimba and nylon guitar, breathy low flute, light shakers, C dorian, 74 bpm, lush, strange and humid.",
+  realm_7: "The Gilded Ruin, a fallen golden empire: elegant harp and plucked strings, soft muted trumpet melody, gentle timpani, E flat lydian, 68 bpm, regal, faded and melancholy.",
+  realm_8: "The Void Spiral at the edge of reality: slow bowed strings that swell and vanish, sparse celesta notes, deep low drone, airy wordless choir pad, A minor, 50 bpm, alien, weightless and unsettling but calm.",
+  realm_9: "The Throne Below, the last realm: low string choir, slow funeral drum, solo cello lament, distant bells, E minor, 56 bpm, grand, tragic and dark.",
 };
 const SFX_BASE = "No vocals, no singing. Clean studio recording, dry, no reverb tail, no background music.";
+// Musical moments (summons, victories, level ups) must sound like the same score as the area music.
+const SCORE = "Same world and sound as the game's background score: a dark-fantasy acoustic and chamber-orchestral RPG soundtrack in the spirit of classic 16-bit adventure games, played on real instruments: harp, felt piano, nylon guitar, cello and low strings, wooden flute, celesta and bells, soft low brass, wordless choir, taiko. Warm, dark, intimate mix with soft highs, a short natural room reverb. Instrumental, no lyrics, no spoken words, no synths, no electronic drums, no chiptune, no rock, no pop.";
 // kind "sting": keep the first musical gesture (up to max seconds). kind "hits": slice the separate hits into one-shots.
 const SFX = {
-  reveal_1: { kind: "sting", max: 2.2, prompt: "One short magical harp glissando with a sparkle, then complete silence." },
-  reveal_3: { kind: "sting", max: 3, prompt: "One short mystical reveal: rising chimes into a soft wordless choir swell, then complete silence." },
-  reveal_4: { kind: "sting", max: 4, prompt: "One short epic orchestral fanfare hit with brass, timpani and cymbal for finding a legendary treasure, then complete silence." },
-  summon_charge: { kind: "sting", max: 1.6, prompt: "A short rising magical tension swell with shimmering bells and a low rumble, building up, then complete silence." },
-  level: { kind: "sting", max: 1.2, prompt: "Two quick bright ascending bell notes, a cheerful level-up chime, then complete silence." },
-  unlock: { kind: "sting", max: 2.5, prompt: "A short bright fanfare with bells and a little brass, a new ability unlocked, then complete silence." },
-  boss: { kind: "sting", max: 3.5, prompt: "An ominous low war horn with one huge drum hit: a boss appears. Then complete silence." },
-  boss_down: { kind: "sting", max: 4, prompt: "A short triumphant victory fanfare with brass and drums after beating a boss, then complete silence." },
-  rebirth: { kind: "sting", max: 5, prompt: "An ethereal rising choir swell with bells and a soft orchestral bloom, a phoenix reborn, then complete silence." },
-  omen: { kind: "sting", max: 3, prompt: "A short mysterious sting: dark harp notes over a low string tremolo, something is coming. Then complete silence." },
-  wipe: { kind: "sting", max: 3, prompt: "A short sad defeat sting: low cello falling notes and one soft drum, then complete silence." },
-  secret: { kind: "sting", max: 2, prompt: "A short magical discovery sparkle: twinkling chimes and a soft harp, then complete silence." },
+  // Summon reveals, one per rarity: each rarer one is bigger, all in the score's instruments.
+  reveal_1: { kind: "sting", max: 1.8, base: "score", prompt: "One single soft plucked harp chord in E minor with a faint celesta shimmer, then complete silence." },
+  reveal_2: { kind: "sting", max: 2.4, base: "score", prompt: "One short rising harp arpeggio in E minor that lands on a warm bell note, then complete silence." },
+  reveal_3: { kind: "sting", max: 3.2, base: "score", prompt: "One short magical reveal: rising celesta and harp into a soft wordless choir swell in E minor, then complete silence." },
+  reveal_4: { kind: "sting", max: 4.8, base: "score", prompt: "One short epic reveal for finding a legendary blade: a wordless choir and low horns swell from E minor and resolve to E major with one warm taiko hit and bells, then complete silence." },
+  reveal_5: { kind: "sting", max: 6.5, base: "score", prompt: "One short awe-struck reveal for the rarest mythic blade: a deep taiko and timpani hit, then full wordless choir and horns rise and resolve gloriously to a radiant major chord with bells, then complete silence." },
+  summon_charge: { kind: "sting", max: 1.7, base: "score", prompt: "A short rising tension swell: low cello tremolo with a rising shimmering harp glissando, building up, then complete silence." },
+  level: { kind: "sting", max: 1.0, base: "score", prompt: "Two soft quick ascending celesta notes, a gentle level-up chime, then complete silence." },
+  unlock: { kind: "sting", max: 2.6, base: "score", prompt: "A short warm horn call over a harp flourish, a new ability unlocked, then complete silence." },
+  boss: { kind: "sting", max: 3.6, base: "score", prompt: "An ominous low war horn with one huge taiko hit and a low choir breath: a boss appears. Then complete silence." },
+  boss_down: { kind: "sting", max: 4.2, base: "score", prompt: "A short triumphant cadence after beating a boss: horns and taiko move from D minor to a bright D major chord, then complete silence." },
+  rebirth: { kind: "sting", max: 5.5, base: "score", prompt: "An ethereal rising wordless choir with bells and a soft orchestral bloom, a phoenix reborn from ashes, then complete silence." },
+  omen: { kind: "sting", max: 3, base: "score", prompt: "A short mysterious sting: dark harp notes over a low string tremolo, something is coming. Then complete silence." },
+  wipe: { kind: "sting", max: 3, base: "score", prompt: "A short sad defeat sting: low cello falling notes and one soft taiko, then complete silence." },
+  secret: { kind: "sting", max: 2.2, base: "score", prompt: "A short magical discovery: twinkling celesta and a soft harp flourish, then complete silence." },
+  // v5 moments
+  victory: { kind: "sting", max: 14, min: 8, base: "score", prompt: "A complete short victory theme for conquering the whole dungeon: a heroic horn melody over strings, wordless choir and taiko, starting in D minor and ending on a radiant held D major chord. It lasts about twelve seconds, then complete silence." },
+  realm: { kind: "sting", max: 7, min: 4, base: "score", prompt: "A solemn new-chapter fanfare: low horns and a wordless choir rise as a great stone gate opens, ending on a held open chord, then complete silence." },
+  gate_win: { kind: "sting", max: 5, base: "score", prompt: "A short heroic cadence after winning a duel: horns and taiko, triumphant, ending on a major chord, then complete silence." },
+  purchase: { kind: "sting", max: 2.6, base: "score", prompt: "A short warm thank-you flourish: a harp glissando with a bell sparkle and soft coin chimes, then complete silence." },
   drop: { kind: "sting", max: 1, prompt: "A single glittering coin and gem pickup chime, very short, then complete silence." },
   ult: { kind: "sting", max: 1.8, prompt: "A powerful magical blast: a whoosh into a deep boom with a cymbal crash, then complete silence." },
   // Sword strikes are designed per element by tools/make-hits.mjs: a music model only makes rhythmic beats, not one-shot foley.
@@ -134,16 +160,17 @@ function makeLoop(raw, out) {
   return { secs: y.length / SR, trimmed: [start.toFixed(1), (dur - end).toFixed(1)], seam: seam.toFixed(1), gaps };
 }
 // One sting: from the first sound until it fades (or `max` seconds), with a short fade-out.
-function makeSting(raw, out, max) {
+function makeSting(raw, out, max, min) {
   const x = decodeMono(raw), env = envelope(x, 0.01), peak = Math.max(...env), thr = Math.max(-50, peak - 34);
   // start at the first strong sound, not a faint lead-in
   const on = env.findIndex((v) => v > peak - 18); if (on < 0) throw new Error("silent");
   let end = on, quiet = 0, broke = false;
-  for (let i = on; i < env.length && (i - on) * 0.01 < max; i++) { if (env[i] < thr) { if (++quiet > 35 && (i - on) * 0.01 > max * 0.4) { broke = true; break; } } else { quiet = 0; end = i; } }
+  const least = min || max * 0.4;
+  for (let i = on; i < env.length && (i - on) * 0.01 < max; i++) { if (env[i] < thr) { if (++quiet > 35 && (i - on) * 0.01 > least) { broke = true; break; } } else { quiet = 0; end = i; } }
   // If the model kept playing instead of stopping, cut at the quietest moment late in the window
   // (usually the gap between two notes) so the effect ends on a natural breath, not mid-note.
-  if (!broke) { let lo = Infinity; for (let i = on + Math.floor(max * 55); i < Math.min(env.length, on + max * 100); i++) if (env[i] < lo) { lo = env[i]; end = i; } }
-  const s = Math.max(0, on * 0.01 - 0.01), len = Math.min(max, (end - on) * 0.01 + (broke ? 0.25 : 0.05)), fo = Math.min(broke ? 0.4 : 0.15, len * 0.3);
+  if (!broke) { let lo = Infinity; for (let i = on + Math.floor((min || max * 0.55) * 100); i < Math.min(env.length, on + max * 100); i++) if (env[i] < lo) { lo = env[i]; end = i; } }
+  const s = Math.max(0, on * 0.01 - 0.01), len = Math.min(max, (end - on) * 0.01 + (broke ? 0.25 : 0.05)), fo = Math.min(broke ? 0.4 : max >= 6 ? 1.2 : 0.15, len * 0.3);
   ff(["-i", raw, "-af", `atrim=${s}:${s + len},asetpts=PTS-STARTPTS,afade=t=in:d=0.005,afade=t=out:st=${Math.max(0, len - fo)}:d=${fo},volume=${peakGain(x, s, s + len, -9)}`, ...enc, out]);
   return { secs: len };
 }
@@ -185,7 +212,7 @@ async function main() {
   if (spawnSync("ffmpeg", ["-version"], { stdio: "ignore" }).status !== 0) { console.error("ffmpeg is required."); process.exit(1); }
   const jobs = [];
   if (!flag("--sfx")) Object.keys(MUSIC).forEach((id) => jobs.push({ id, type: "music", model: "google/lyria-3-pro-preview", prompt: `${MUSIC[id]} ${MUSIC_BASE}` }));
-  if (!flag("--music")) Object.keys(SFX).forEach((id) => jobs.push({ id, type: "sfx", model: "google/lyria-3-clip-preview", prompt: `${SFX[id].prompt} ${SFX_BASE}` }));
+  if (!flag("--music")) Object.keys(SFX).forEach((id) => jobs.push({ id, type: "sfx", model: "google/lyria-3-clip-preview", prompt: `${SFX[id].prompt} ${SFX[id].base === "score" ? SCORE : SFX_BASE}` }));
   const report = [];
   for (const j of jobs) {
     if (only && !only.includes(j.id)) continue;
@@ -206,7 +233,7 @@ async function main() {
       } else {
         fs.readdirSync(SFX_OUT).filter((f) => f === j.id + ".mp3" || new RegExp("^" + j.id + "_\\d+\\.mp3$").test(f)).forEach((f) => fs.unlinkSync(path.join(SFX_OUT, f)));
         const s = SFX[j.id];
-        if (s.kind === "sting") { const r = makeSting(raw, path.join(SFX_OUT, j.id + ".mp3"), s.max); report.push(`sfx   ${j.id.padEnd(14)} ${r.secs.toFixed(2)} s`); }
+        if (s.kind === "sting") { const r = makeSting(raw, path.join(SFX_OUT, j.id + ".mp3"), s.max, s.min); report.push(`sfx   ${j.id.padEnd(14)} ${r.secs.toFixed(2)} s`); }
         else { const r = sliceHits(raw, path.join(SFX_OUT, j.id), s.max); report.push(`sfx   ${j.id.padEnd(14)} ${r.count} one-shots`); }
       }
     } catch (e) { report.push(`FAILED ${key}: ${e.message}`); }

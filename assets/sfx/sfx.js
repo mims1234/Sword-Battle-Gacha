@@ -59,6 +59,9 @@ window.SFX_FILES = {
   "drop": [
     "assets/sfx/drop.mp3"
   ],
+  "gate_win": [
+    "assets/sfx/gate_win.mp3"
+  ],
   "hit_fire": [
     "assets/sfx/hit_fire_1.mp3",
     "assets/sfx/hit_fire_2.mp3",
@@ -115,17 +118,29 @@ window.SFX_FILES = {
   "omen": [
     "assets/sfx/omen.mp3"
   ],
+  "purchase": [
+    "assets/sfx/purchase.mp3"
+  ],
+  "realm": [
+    "assets/sfx/realm.mp3"
+  ],
   "rebirth": [
     "assets/sfx/rebirth.mp3"
   ],
   "reveal_1": [
     "assets/sfx/reveal_1.mp3"
   ],
+  "reveal_2": [
+    "assets/sfx/reveal_2.mp3"
+  ],
   "reveal_3": [
     "assets/sfx/reveal_3.mp3"
   ],
   "reveal_4": [
     "assets/sfx/reveal_4.mp3"
+  ],
+  "reveal_5": [
+    "assets/sfx/reveal_5.mp3"
   ],
   "secret": [
     "assets/sfx/secret.mp3"
@@ -138,6 +153,9 @@ window.SFX_FILES = {
   ],
   "unlock": [
     "assets/sfx/unlock.mp3"
+  ],
+  "victory": [
+    "assets/sfx/victory.mp3"
   ],
   "wipe": [
     "assets/sfx/wipe.mp3"

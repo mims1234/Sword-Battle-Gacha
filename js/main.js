@@ -11,6 +11,7 @@
 
   function away(secs, quiet) {
     if (G.rift) { G.rift.t -= secs; return; } // the daily trial clock keeps running; no offline floors during it
+    if (G.gate) G.leaveGate(); // a boss fight does not run while away; the key comes back
     const r = G.offline(secs);
     G.recalc(); G.startFloor(); G.ui.dirty("all");
     if (!quiet || secs > 300) G.ui.offline(r);

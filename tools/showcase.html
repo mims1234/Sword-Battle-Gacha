@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blade & Music Showcase</title>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --bg: #120d0e; --panel: #1c1513; --line: #3a2a22; --bone: #eadfc6; --dim: #a8977d; --gold: #f2c14e; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--bone); font: 15px "Alegreya Sans", sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1200px; margin: auto; }
+  h1 { font: 700 26px "Pixelify Sans", monospace; color: var(--gold); margin: 0 0 4px; }
+  h2 { font: 700 19px "Pixelify Sans", monospace; color: var(--gold); margin: 28px 0 6px; }
+  h3 { font: 500 15px "Pixelify Sans", monospace; margin: 14px 0 6px; color: #fff3d6; }
+  p.dim, .dim { color: var(--dim); }
+  main { max-width: 1200px; margin: auto; padding: 0 16px 60px; }
+  nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  nav a { color: var(--bone); background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; text-decoration: none; font: 500 13px "Pixelify Sans"; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .b { --tc: #9aa0a8; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 18%, #140e0c), #0d0909 75%); box-shadow: inset 0 0 0 2px var(--tc), inset 0 0 0 3px #000; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+  .sw { width: 64px; height: 64px; image-rendering: pixelated; background-repeat: no-repeat; }
+  .b b { font-size: 12px; text-align: center; line-height: 1.1; overflow-wrap: anywhere; }
+  .b small { font-size: 11px; color: var(--dim); }
+  .row { display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; margin: 6px 0; }
+  .row b { display: block; } .row small { color: var(--dim); }
+  audio { width: 100%; }
+  .stats { display: flex; gap: 18px; flex-wrap: wrap; margin: 8px 0; } .stats div b { font: 700 22px "Pixelify Sans"; color: #fff3d6; display: block; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Idle Blade Master: new blades & music</h1>
+  <p class="dim">Everything below is read straight from the game's files. Blades are shown at 2x.</p>
+  <div class="stats" id="stats"></div>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<script src="../js/data.swords.js"></script>
+<script src="../js/data.monsters.js"></script>
+<script src="../js/data.game.js"></script>
+<script>window.localStorage || (window.localStorage = { getItem() { return null; }, setItem() {}, removeItem() {} });</script>
+<script src="../js/state.js"></script>
+<script src="../js/data.blade-art.js"></script>
+<script src="../js/data.realms.js"></script>
+<script src="../js/art.blades.js"></script>
+<script src="../assets/music/tracks.js"></script>
+<script src="../assets/sfx/sfx.js"></script>
+<script>
+  const G = window.G, BA = window.BLADE_ART, esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function sprite(w) {
+    if (w.cell != null && BA) { const C = BA.cols, R = BA.rows; return `background-image:url(../assets/blades.png);background-size:${C * 100}% ${R * 100}%;background-position:${((w.cell % C) / (C - 1)) * 100}% ${R > 1 ? (Math.floor(w.cell / C) / (R - 1)) * 100 : 0}%`; }
+    const g = G.ART.slot[w.index];
+    if (g != null) { const C = G.ART.cols, R = G.ART.rows; return `background-image:var(--blades);background-size:${C * 100}% ${R * 100}%;background-position:${((g % C) / (C - 1)) * 100}% ${R > 1 ? (Math.floor(g / C) / (R - 1)) * 100 : 0}%`; }
+    const k = w.spr; return `background-image:url(../assets/sprite_swords.png);background-size:600% 500%;background-position:${((k % 6) / 5) * 100}% ${(Math.floor(k / 6) / 4) * 100}%`;
+  }
+  const card = (w) => `<div class="b" style="--tc:${G.TIER[w.rarity].color}" title="${esc(w.description || "")}"><span class="sw" style="${sprite(w)}"></span><b>${esc(w.name)}</b><small>${G.TIER[w.rarity].label} · ${G.EL[w.element].label}</small></div>`;
+  const order = (a, z) => G.TIER[z.rarity].rank - G.TIER[a.rarity].rank || a.index - z.index;
+  const drawn = G.SW.filter((w) => w.cell != null).length;
+  document.getElementById("stats").innerHTML = `<div><b>${G.SW.length}</b>blades</div><div><b>${drawn}</b>AI-drawn</div><div><b>${G.SW.length - drawn - 30}</b>generated fallback</div><div><b>14</b>new music loops</div><div><b>18</b>new short pieces</div>`;
+  let h = "", nav = `<a href="#music">Music</a><a href="#stings">Short pieces</a>`;
+  // ---- music
+  const NEW_MUSIC = [
+    ["summon", "Summon altar", "Shimmering harp and celesta over a soft choir and cello drone. Plays on the summon screen."],
+    ["shop", "Merchant's stall", "Warm nylon guitar and lute, reed organ, hand drum. Plays in the shop."],
+    ["gate", "Boss Gate", "Low string ostinato, taiko, solemn horns. Boss Gate fights."],
+    ["lord", "Realm Lord", "Relentless cello and bass, heavy taiko, brass and choir. Every 100th floor."],
+    ["throne", "The Throne Below", "Choir, organ, low brass, mournful violin. Final boss, floor 1000."],
+    ["realm_1", "Realm II: The Ember Halls", "Low cello, anvil percussion, warm horns."],
+    ["realm_2", "Realm III: The Frostbound Vaults", "Music-box celesta, bowed crystal glasses, airy strings."],
+    ["realm_3", "Realm IV: The Sunless Sea", "Slow harp and felt piano with long echoes, low cello glides."],
+    ["realm_4", "Realm V: The Bone Cathedral", "Low wordless choir, pipe organ, viola drone."],
+    ["realm_5", "Realm VI: The Storm Abyss", "Tremolo strings, distant thunder timpani, wooden flute."],
+    ["realm_6", "Realm VII: The Verdant Rot", "Kalimba, marimba, nylon guitar, breathy flute."],
+    ["realm_7", "Realm VIII: The Gilded Ruin", "Harp and plucked strings, muted trumpet, gentle timpani."],
+    ["realm_8", "Realm IX: The Void Spiral", "Swelling strings, sparse celesta, deep drone."],
+    ["realm_9", "Realm X: The Throne Below", "Low string choir, funeral drum, solo cello lament."],
+  ];
+  const T = window.MUSIC_TRACKS || {}, F = window.SFX_FILES || {};
+  h += `<h2 id="music">New music loops</h2><p class="dim">Full tracks cut into seamless loops, in the same dark acoustic-orchestral style as the area music.</p>` +
+    NEW_MUSIC.filter((m) => T[m[0]]).map((m) => `<div class="row"><div><b>${m[1]}</b><small>${m[2]}</small></div><audio controls preload="none" src="../${T[m[0]]}"></audio></div>`).join("");
+  const STINGS = [
+    ["reveal_1", "Summon reveal: Common"], ["reveal_2", "Summon reveal: Rare"], ["reveal_3", "Summon reveal: Epic"], ["reveal_4", "Summon reveal: Legendary"], ["reveal_5", "Summon reveal: Mythic"],
+    ["summon_charge", "Summon charge-up"], ["victory", "Victory (floor 1000)"], ["realm", "New realm"], ["gate_win", "Boss Gate win"], ["purchase", "Purchase"],
+    ["level", "Level up"], ["unlock", "Unlock"], ["boss", "Boss appears"], ["boss_down", "Boss defeated"], ["rebirth", "Rebirth"], ["omen", "Event warning"], ["wipe", "Defeat"], ["secret", "Secret found"],
+  ];
+  h += `<h2 id="stings">New short pieces</h2><p class="dim">Each one trimmed from a 30-second clip to its best moment.</p>` +
+    STINGS.filter((s) => F[s[0]]).map((s) => `<div class="row"><div><b>${s[1]}</b></div><audio controls preload="none" src="../${F[s[0]][0]}"></audio></div>`).join("");
+  // ---- blades
+  for (let r = 0; r < G.REALMS.length; r++) {
+    const R = G.REALMS[r], list = G.SW.filter((w) => w.realm === r && !w.sig).sort(order), boss = G.SW.filter((w) => w.realm === r && w.sig);
+    nav += `<a href="#realm${r}">${G.ROMAN[r]}</a>`;
+    h += `<h2 id="realm${r}">Realm ${G.ROMAN[r]}: ${R.name}</h2><p class="dim">${list.length} summonable blades, ${boss.length} boss blades</p><div class="grid">${list.map(card).join("")}</div>`;
+    h += `<h3>Boss blades</h3><div class="grid">${boss.map(card).join("")}</div>`;
+  }
+  document.getElementById("nav").innerHTML = nav;
+  document.getElementById("main").innerHTML = h;
+</script>
+</body>
+</html>
