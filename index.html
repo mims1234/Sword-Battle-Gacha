@@ -2,299 +2,97 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#0c090a" />
         <title>Idle Blade Master</title>
+        <link rel="manifest" href="manifest.json" />
+        <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Pirata+One&family=MedievalSharp&family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&display=swap"
-            rel="stylesheet"
-        />
-        <link rel="stylesheet" href="css/index.css?v=2.0" />
+        <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Pixelify+Sans:wght@400;500;600;700&family=Silkscreen&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="css/game.css?v=5.1" />
     </head>
     <body>
-        <div class="ambient-glow"></div>
-        <div class="stone-texture"></div>
-        <div class="ambient-ember" id="emberContainer"></div>
+        <div id="boot" class="boot">
+            <div class="boot-mark">ᛟ</div>
+            <h1>Idle Blade Master</h1>
+            <p id="bootHint">Loading the dungeon</p>
+            <small id="bootGfx" class="bootgfx"></small>
+        </div>
 
-        <div class="app-container">
-            <header class="game-header">
-                <div class="header-brand">
-                    <span class="brand-rune">ᚠ</span>
-                    <h1 class="game-title">Idle Blade Master</h1>
-                    <span class="brand-rune">ᚦ</span>
+        <div id="app" class="app">
+            <header id="top" class="top">
+                <button class="floor" data-act="open" data-p="journal" title="Quests">
+                    <b id="floorNo">Floor 1</b>
+                    <span id="biome">Goblin Warrens</span>
+                    <span class="pips" id="pips"></span>
+                </button>
+                <nav id="deskNav" class="desknav" aria-label="Screens"></nav>
+                <div class="cur">
+                    <span class="c-gold" title="Gold: level up your team"><i class="ic gold"></i><b id="souls">0</b></span>
+                    <button class="c-gem" data-act="open" data-p="forge" title="Gems: summon new blades"><i class="ic gem"></i><b id="sigils">0</b></button><button class="c-plus" data-act="open" data-p="shop" title="Shop" aria-label="Shop">+</button>
+                    <span class="c-ess" id="embWrap" title="Essence: rebirth upgrades" hidden><i class="ic ess"></i><b id="embers">0</b></span>
                 </div>
-                <div class="header-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                        <div class="level-text">Level 1</div>
-                    </div>
-                    <div class="pity-bar" id="pityBar">
-                        <div class="pity-fill" id="pityFill"></div>
-                        <span class="pity-text" id="pityText">Pity: 0</span>
-                    </div>
-                </div>
-                <div class="header-stats">
-                    <div class="stat-block">
-                        <span class="stat-icon icon-kills">⚔</span>
-                        <span class="monsters-killed">0</span>
-                    </div>
-                    <div class="stat-block">
-                        <span class="stat-icon icon-chests">◆</span>
-                        <span class="chests">5</span>
-                    </div>
-                    <div
-                        class="stat-block"
-                        id="prestigeBlock"
-                        style="display: none"
-                    >
-                        <span class="stat-icon icon-prestige">♜</span>
-                        <span id="prestigeCount">0</span>
-                    </div>
-                </div>
+                <button class="omen" id="omenBtn" data-act="omenInfo" title="Event candle" aria-label="Event candle"><span class="wick"></span><span class="flame" id="flame"></span></button>
+                <button class="iconbtn" data-act="open" data-p="more" aria-label="Menu">☰</button>
             </header>
 
-            <div class="arena-bar">
-                <div class="arena-controls">
-                    <button id="pullButton" class="btn-arena btn-arena-forge">
-                        Forge
-                    </button>
-                </div>
-                <div class="arena-display">
-                    <div class="arena-slot current-monster-display">
-                        <div class="slot-label">Foe</div>
-                    </div>
-                    <div class="vs-text">VS</div>
-                    <div class="arena-slot current-sword">
-                        <div class="slot-label">Blade</div>
-                    </div>
-                </div>
-                <div class="arena-controls">
-                    <button id="playPauseButton" class="btn-arena" disabled>
-                        Battle
-                    </button>
-                </div>
-            </div>
+            <main id="main" class="main">
+                <aside id="left" class="dock"></aside>
 
-            <button id="menuButton" class="menu-button">☰</button>
-
-            <div class="main-layout">
-                <aside class="sidebar-left" id="sidebarLeft">
-                    <div class="panel-header">
-                        <h2>Armory</h2>
-                        <span class="collection-count" id="collectionCount"
-                            >0/30</span
-                        >
+                <section id="center" class="center">
+                    <div id="stageWrap" class="stagewrap">
+                        <canvas id="stage"></canvas>
+                        <div class="mutes"><button class="mute" id="musicBtn" data-act="muteMusic" aria-label="Music on or off" title="Music on/off">♪</button><button class="mute" id="sfxBtn" data-act="muteSfx" aria-label="Sound effects on or off" title="Sound effects on/off">FX</button><button class="mute" data-act="open" data-p="settings" aria-label="Volume settings" title="Volume settings">⚙</button><button class="mute gfxb" id="gfxBtn" data-act="gfxCycle" aria-label="Graphics quality: tap to change" title="Graphics quality: tap to change">HI</button></div>
+                        <div id="bossBar" class="bossbar" hidden><span id="bossName"></span><div><i id="bossFill"></i></div></div>
+                        <div id="status" class="status"></div>
+                        <div id="advice" class="advice" hidden></div>
+                        <div id="toasts" class="toasts"></div>
                     </div>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" data-filter="all">
-                            All
-                        </button>
-                        <button class="filter-btn" data-filter="common">
-                            Stone
-                        </button>
-                        <button class="filter-btn" data-filter="rare">
-                            Frost
-                        </button>
-                        <button class="filter-btn" data-filter="epic">
-                            Arcane
-                        </button>
-                        <button class="filter-btn" data-filter="legendary">
-                            Forge
-                        </button>
-                    </div>
-                    <div id="collection" class="collection">
-                        <div id="allCollection"></div>
-                    </div>
-                    <div class="panel-actions" style="justify-content: center">
-                        <button
-                            id="bestiaryButton"
-                            class="btn-sm btn-iron"
-                            style="width: 100%"
-                        >
-                            Bestiary
-                        </button>
-                    </div>
-                </aside>
-
-                <div class="overlay-container"></div>
-                <main class="center-panel">
-                    <div class="gacha-section forge-pulse">
-                        <div id="chestAnimation" class="chest-animation"></div>
-                        <div id="result"></div>
-                    </div>
-                    <div
-                        class="combo-display"
-                        id="comboDisplay"
-                        style="display: none"
-                    >
-                        <span class="combo-fire">🔥</span>
-                        <span id="comboCount">0</span>x Streak
-                        <span class="combo-bonus" id="comboBonus">(+0%)</span>
-                    </div>
-                </main>
-
-                <aside class="sidebar-right" id="sidebarRight">
-                    <div class="panel-tabs">
-                        <button class="tab-btn active" data-tab="log">
-                            Log
-                        </button>
-                        <button class="tab-btn" data-tab="achievements">
-                            Feats
-                        </button>
-                        <button class="tab-btn" data-tab="bestiary">
-                            Bestiary
-                        </button>
-                    </div>
-                    <div class="tab-content active" id="tabLog">
-                        <div id="notifications"></div>
-                    </div>
-                    <div class="tab-content" id="tabAchievements">
-                        <div
-                            class="filter-buttons"
-                            id="featFilters"
-                            style="justify-content: center; margin-bottom: 8px"
-                        >
-                            <button class="filter-btn active" data-filter="all">
-                                All
-                            </button>
-                            <button class="filter-btn" data-filter="completed">
-                                Completed
-                            </button>
+                    <div id="lower" class="lower">
+                        <div id="band" class="band"></div>
+                        <div id="ctl" class="ctl"></div>
+                        <div id="info" class="info"></div>
+                        <div id="sheet" class="sheet" hidden>
+                            <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="iconbtn help" data-act="help" aria-label="How this works">?</button><button class="iconbtn" data-act="close" aria-label="Close">✕</button></div>
+                            <div class="sheet-body" id="sheetBody"></div>
                         </div>
-                        <div id="achievementsList"></div>
                     </div>
-                    <div class="tab-content" id="tabBestiary">
-                        <div id="bestiaryList"></div>
-                    </div>
-                </aside>
-            </div>
+                </section>
 
-            <footer class="game-footer">
-                <div class="footer-info" id="footerInfo">
-                    <span id="streakDisplay">No active streak</span>
-                    <span class="footer-sep">|</span>
-                    <span id="pullsDisplay">Pulls: 0</span>
-                    <span class="footer-sep">|</span>
-                    <span id="dpsDisplay">DPS: 0</span>
-                </div>
-                <div class="footer-actions">
-                    <button id="saveButton" class="btn-tiny btn-iron">
-                        💾 Save
-                    </button>
-                    <button
-                        id="prestigeButton"
-                        class="btn-tiny btn-copper"
-                        disabled
-                    >
-                        ♜ Prestige
-                    </button>
-                    <button id="resetButton" class="btn-tiny btn-danger">
-                        Reset
-                    </button>
-                </div>
-            </footer>
+                <aside id="right" class="dock"></aside>
+            </main>
+
+            <nav id="tabs" class="tabs" aria-label="Screens">
+                <button data-act="close" data-tab="descent"><i>⚔</i>Battle</button>
+                <button data-act="open" data-p="warband" data-tab="warband"><i>⛨</i>Team</button>
+                <button data-act="open" data-p="forge" data-tab="forge"><i>◆</i>Summon<em id="forgeDot" hidden></em></button>
+                <button data-act="open" data-p="journal" data-tab="journal"><i>✎</i>Quests<em id="journalDot" hidden></em></button>
+                <button data-act="open" data-p="shop" data-tab="shop"><i>⛁</i>Shop<em id="shopDot" hidden></em></button>
+                <button data-act="open" data-p="more" data-tab="more"><i>☰</i>More</button>
+            </nav>
+
+            <div id="summon" class="smview" hidden></div>
+            <div id="coach" class="coach" hidden></div>
+            <div id="guide" class="guide" hidden></div>
+            <div id="modal" class="modal" hidden><div class="modal-card" id="modalCard"></div></div>
         </div>
 
-        <div id="bestiaryModal" class="modal-backdrop" style="display: none">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Monster Bestiary</h2>
-                    <button class="modal-close" id="bestiaryClose">✕</button>
-                </div>
-                <div id="bestiaryGrid" class="bestiary-grid"></div>
-            </div>
-        </div>
-
-        <div id="forgeModal" class="modal-backdrop" style="display: none">
-            <div class="modal-content forge-modal">
-                <div class="modal-header">
-                    <h2>Blade Forge</h2>
-                    <button class="modal-close" id="forgeClose">✕</button>
-                </div>
-                <div class="forge-body">
-                    <p style="margin-bottom: 8px; color: #ccc">
-                        Select a sword to forge into a higher rarity.
-                    </p>
-                    <div
-                        id="forgeSelectionGrid"
-                        class="collection"
-                        style="
-                            max-height: 250px;
-                            overflow-y: auto;
-                            display: grid;
-                            grid-template-columns: repeat(4, 1fr);
-                            gap: 4px;
-                            margin-bottom: 12px;
-                        "
-                    ></div>
-                    <div
-                        id="forgeActionArea"
-                        style="
-                            display: none;
-                            flex-direction: column;
-                            align-items: center;
-                            gap: 8px;
-                            padding-top: 12px;
-                            border-top: 1px solid rgba(249, 115, 22, 0.2);
-                        "
-                    >
-                        <div
-                            id="forgeSelectedSlot"
-                            class="sword-item active"
-                            style="
-                                width: 64px;
-                                height: 64px;
-                                pointer-events: none;
-                            "
-                        ></div>
-                        <div
-                            id="forgeCostText"
-                            style="
-                                font-size: 14px;
-                                color: #aaa;
-                                text-align: center;
-                            "
-                        ></div>
-                        <button id="forgeExecute" class="btn-forge">
-                            Forge
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="swordPreview" class="modal-backdrop" style="display: none">
-            <div class="modal-content preview-modal">
-                <div class="modal-header">
-                    <h2 id="previewName">Sword Name</h2>
-                    <button class="modal-close" id="previewClose">✕</button>
-                </div>
-                <div class="preview-body">
-                    <canvas
-                        id="previewCanvas"
-                        width="128"
-                        height="128"
-                    ></canvas>
-                    <div class="preview-rarity" id="previewRarity"></div>
-                    <p class="preview-desc" id="previewDesc"></p>
-                    <div class="preview-stats" id="previewStats"></div>
-                    <div class="preview-power" id="previewPower"></div>
-                    <div class="preview-uses" id="previewUses"></div>
-                    <button id="previewSelectBtn" class="btn-forge" disabled>
-                        No Uses Left
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            const APP_VERSION = "2.0";
-        </script>
-        <script src="js/core.js?v=2.0"></script>
-        <script src="js/overlay.js?v=2.0"></script>
-        <script src="js/battle.js?v=2.0"></script>
-        <script src="js/ui.js?v=2.0"></script>
-        <script src="js/main.js?v=2.0"></script>
+        <script src="js/data.swords.js?v=5.1"></script>
+        <script src="js/data.monsters.js?v=5.1"></script>
+        <script src="js/data.game.js?v=5.1"></script>
+        <script src="js/state.js?v=5.1"></script>
+        <script src="js/data.blade-art.js?v=5.1"></script>
+        <script src="js/data.realms.js?v=5.1"></script>
+        <script src="js/art.blades.js?v=5.1"></script>
+        <script src="js/sim.js?v=5.1"></script>
+        <script src="js/shop.js?v=5.1"></script>
+        <script src="js/render.js?v=5.1"></script>
+        <script src="assets/music/tracks.js?v=5.1"></script>
+        <script src="assets/sfx/sfx.js?v=5.1"></script>
+        <script src="js/audio.js?v=5.1"></script>
+        <script src="js/ui.js?v=5.1"></script>
+        <script src="js/guide.js?v=5.1"></script>
+        <script src="js/main.js?v=5.1"></script>
     </body>
 </html>

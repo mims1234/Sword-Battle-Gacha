@@ -1,167 +1,78 @@
-// ===================== EVENT BINDINGS & INIT =====================
+// ===================== BOOT + MAIN LOOP =====================
 (function () {
-  const G = Game;
-  const $ = G.els;
+  const G = window.G;
+  let last = 0, hiddenAt = 0, saveT = 0, secT = 0;
 
-  // ---------- FILTER BUTTONS ----------
-  document.querySelectorAll(".filter-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".filter-btn")
-        .forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      G.displayCollection(btn.dataset.filter);
-    });
-  });
-
-  // ---------- PLAY/PAUSE ----------
-  $.playPauseButton.addEventListener("click", () => {
-    if (
-      G.currentSwordIndex === null ||
-      !G.gameState.activeSwords[G.currentSwordIndex]
-    ) {
-      $.playPauseButton.textContent = "Battle";
-      return;
-    }
-    if (G.overlayQueue.isDisplaying && G.overlayQueue.queue.length > 0) return;
-    G.autoPlay = !G.autoPlay;
-    $.playPauseButton.textContent = G.autoPlay ? "Stop" : "Battle";
-    if (G.autoPlay) {
-      const sw = G.swordData.find((s) => s.index === G.currentSwordIndex);
-      if (sw && G.gameState.activeSwords[sw.index]) G.simulateBattle(sw);
-    }
-  });
-
-  // ---------- MENU TOGGLE ----------
-  $.menuButton.addEventListener("click", () => {
-    document.querySelector(".sidebar-left").classList.toggle("open");
-  });
-
-  // ---------- GACHA PULL ----------
-  $.pullButton.addEventListener("click", G.doGachaPull);
-
-  // ---------- FORGE ----------
-  if ($.forgeButton) $.forgeButton.addEventListener("click", G.openForgeModal);
-  document
-    .getElementById("forgeClose")
-    .addEventListener("click", G.closeForgeModal);
-  document.getElementById("forgeModal").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) G.closeForgeModal();
-  });
-  document
-    .getElementById("forgeExecute")
-    .addEventListener("click", G.executeForge);
-
-  // ---------- BESTIARY ----------
-  $.bestiaryButton.addEventListener("click", G.openBestiaryModal);
-  document.getElementById("bestiaryClose").addEventListener("click", () => {
-    document.getElementById("bestiaryModal").style.display = "none";
-  });
-  document.getElementById("bestiaryModal").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget)
-      document.getElementById("bestiaryModal").style.display = "none";
-  });
-
-  // ---------- PRESTIGE ----------
-  $.prestigeButton.addEventListener("click", G.doPrestige);
-
-  // ---------- SAVE / RESET ----------
-  $.saveButton.addEventListener("click", () => {
-    G.saveGame();
-    G.showNotification("💾 Game saved!", "#888");
-  });
-  $.resetButton.addEventListener("click", () => {
-    if (!confirm("Reset all progress? This cannot be undone!")) return;
-    localStorage.removeItem(G.SAVE_KEY);
-    location.reload();
-  });
-
-  // ---------- TABS ----------
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll(".tab-btn")
-        .forEach((b) => b.classList.remove("active"));
-      document
-        .querySelectorAll(".tab-content")
-        .forEach((c) => c.classList.remove("active"));
-      btn.classList.add("active");
-      const tabId = `tab${btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)}`;
-      const tab = document.getElementById(tabId);
-      if (tab) tab.classList.add("active");
-    });
-  });
-
-  // ---------- FEAT FILTERS ----------
-  document.querySelectorAll("#featFilters .filter-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document
-        .querySelectorAll("#featFilters .filter-btn")
-        .forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      G.currentFeatFilter = btn.dataset.filter;
-      G.updateAchievementsList();
-    });
-  });
-
-  // ---------- INIT ----------
-  G.initializeCollection();
-
-  const loaded = G.loadGame();
-  if (loaded) {
-    G.updateTopBar();
-    G.updatePlayButtonState();
-    G.updateOpenChestButtonState();
-    G.updatePityUI();
-    G.updateComboUI();
-    G.updatePrestigeUI();
-    G.updateAchievementsList();
-    G.updateBestiaryList();
-    G.updateDPS();
+  function dispatch() {
+    if (!G.ev.length) return;
+    const evs = G.ev; G.ev = [];
+    for (const e of evs) { G.render.on(e); G.ui.on(e); G.audio.on(e); }
   }
 
-  // ---------- FETCH DATA ----------
-  fetch("swords.json")
-    .then((r) => r.json())
-    .then((data) => {
-      G.swordData = data;
-      G.displayCollection();
-      G.updateCollectionCount();
-      if (!loaded) G.updateTopBar();
-    })
-    .catch((e) => console.error("Error loading swords:", e));
+  function away(secs, quiet) {
+    if (G.rift) { G.rift.t -= secs; return; } // the daily trial clock keeps running; no offline floors during it
+    if (G.gate) G.leaveGate(); // a boss fight does not run while away; the key comes back
+    const r = G.offline(secs);
+    G.recalc(); G.startFloor(); G.ui.dirty("all");
+    if (!quiet || secs > 300) G.ui.offline(r);
+  }
 
-  fetch("monsters.json")
-    .then((r) => r.json())
-    .then((data) => {
-      G.monsterTypes = data;
-      G.updateBestiaryList();
-    })
-    .catch((e) => console.error("Error loading monsters:", e));
+  function loop(now) {
+    const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    G.frameEma = (G.frameEma || 16) * 0.97 + Math.min(100, dt * 1000) * 0.03; // smoothness check for the graphics suggestion
+    if (G.render.stop > 0) G.render.stop -= dt;
+    else { let t = dt * G.s.set.speed; while (t > 0) { const h = Math.min(0.05, t); G.step(h); t -= h; } }
+    if (!G.paused) G.onlineTick(dt);
+    dispatch();
+    G.render.frame(dt); G.ui.frame(now);
+    secT += dt; if (secT >= 1) { secT = 0; G.rollBounties(); G.ui.slowTick(); G.audio.music(); }
+    saveT += dt; if (saveT >= 15) { saveT = 0; if (!G.noSave) G.save(); }
+    requestAnimationFrame(loop);
+  }
 
-  // ---------- AUTO-SAVE ----------
-  setInterval(G.saveGame, 30000);
+  function keys(e) {
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+    const A = G.ui.act, k = e.key.toLowerCase();
+    if (k >= "1" && k <= "5") G.castUlt(+k - 1);
+    else if (k === " ") { e.preventDefault(); A.pause(); }
+    else if (k === "l") A.lvlAll();
+    else if (k === "s" || k === "g") G.ui.open("forge");
+    else if (k === "t" || k === "w") G.ui.open("warband");
+    else if (k === "escape") { if (!document.getElementById("modal").hidden) { if (!G.paused || G.paused === "user") G.ui.closeModal(); } else { G.ui.closeSummon(); G.ui.close(); } }
+  }
 
-  // ---------- EMBER PARTICLES ----------
-  (function spawnEmbers() {
-    const container = G.els.emberContainer;
-    if (!container || window.innerWidth < 480) return;
-    for (let i = 0; i < 12; i++) {
-      const el = document.createElement("div");
-      el.className = "ember-particle";
-      el.style.left = `${Math.random() * 100}%`;
-      el.style.animationDuration = `${4 + Math.random() * 6}s`;
-      el.style.animationDelay = `${Math.random() * 8}s`;
-      el.style.width = `${1.5 + Math.random() * 2.5}px`;
-      el.style.height = el.style.width;
-      el.style.opacity = `${0.2 + Math.random() * 0.4}`;
-      container.appendChild(el);
-    }
-  })();
-
-  // ---------- INITIAL UI UPDATE ----------
-  G.updatePityUI();
-  G.updatePrestigeUI();
-  G.updateOpenChestButtonState();
-  G.updatePlayButtonState();
+  function boot() {
+    const had = G.load(), gone = (Date.now() - G.s.last) / 1000;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches && !had) G.s.set.calm = true;
+    G.ui.init(); G.render.init(document.getElementById("stage"));
+    if (had && gone > 60) away(gone, false); else G.startFloor();
+    if (G.s.migrated) { delete G.s.migrated; G.ui.toast("Your old save was carried over. Every blade you owned is now yours to keep.", "#c9a24b"); }
+    document.addEventListener("keydown", keys);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { hiddenAt = Date.now(); if (!G.noSave) G.save(); }
+      else if (hiddenAt) { const s = (Date.now() - hiddenAt) / 1000; hiddenAt = 0; last = performance.now(); if (s > 20 && !G.paused) away(s, true); }
+    });
+    window.addEventListener("pagehide", () => { if (!G.noSave) G.save(); });
+    // Browsers block sound until the player taps, clicks or presses a key, so the loading screen
+    // waits for that first tap: it starts the music and effects at the same moment the game appears.
+    const bootEl = document.getElementById("boot"), hint = document.getElementById("bootHint");
+    const firstTrack = G.audio.preloadMusic();
+    const q = G.s.set.gfx || "low", gfxNote = document.getElementById("bootGfx");
+    if (gfxNote) gfxNote.textContent = q === "high" ? "Graphics: High. Lower it any time with the HI button in the arena." : "Graphics: " + (q === "low" ? "Low" : "Medium") + ". Try higher with the " + (q === "low" ? "LO" : "MED") + " button in the arena for richer visuals.";
+    const ready = () => { if (bootEl.dataset.ready) return; bootEl.dataset.ready = 1; hint.textContent = "Tap anywhere to start"; bootEl.classList.add("ready"); };
+    if (firstTrack) { firstTrack.addEventListener("canplaythrough", ready, { once: true }); setTimeout(ready, 2500); } else setTimeout(ready, 400);
+    G.paused = "boot";
+    const start = (e) => {
+      if (e && e.type === "keydown" && (e.key === "Tab" || e.altKey || e.ctrlKey || e.metaKey)) return;
+      ready(); if (e) { e.preventDefault(); e.stopPropagation(); } // the starting key should not also trigger a shortcut
+      document.removeEventListener("keydown", start, true); bootEl.removeEventListener("pointerup", start);
+      G.audio.unlock(); if (G.paused === "boot") G.paused = null; last = performance.now();
+      bootEl.classList.add("out"); setTimeout(() => bootEl.remove(), 600);
+    };
+    bootEl.addEventListener("pointerup", start); document.addEventListener("keydown", start, true);
+    // Safety net: any later tap or key anywhere also unlocks sound (for example after a refresh in the background).
+    ["pointerdown", "keydown", "touchend"].forEach((t) => document.addEventListener(t, () => { if (!G.audio._unlocked) G.audio.unlock(); }, { capture: true, passive: true }));
+    requestAnimationFrame((t) => { last = t; loop(t); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

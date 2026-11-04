@@ -1,0 +1,25 @@
+// Written by tools/make-music.mjs. Lists the music files the game can play.
+window.MUSIC_TRACKS = {
+  "beast": "assets/music/beast.mp3",
+  "boss": "assets/music/boss.mp3",
+  "brute": "assets/music/brute.mp3",
+  "demon": "assets/music/demon.mp3",
+  "dragon": "assets/music/dragon.mp3",
+  "gate": "assets/music/gate.mp3",
+  "holy": "assets/music/holy.mp3",
+  "lord": "assets/music/lord.mp3",
+  "nature": "assets/music/nature.mp3",
+  "realm_1": "assets/music/realm_1.mp3",
+  "realm_2": "assets/music/realm_2.mp3",
+  "realm_3": "assets/music/realm_3.mp3",
+  "realm_4": "assets/music/realm_4.mp3",
+  "realm_5": "assets/music/realm_5.mp3",
+  "realm_6": "assets/music/realm_6.mp3",
+  "realm_7": "assets/music/realm_7.mp3",
+  "realm_8": "assets/music/realm_8.mp3",
+  "realm_9": "assets/music/realm_9.mp3",
+  "shop": "assets/music/shop.mp3",
+  "summon": "assets/music/summon.mp3",
+  "throne": "assets/music/throne.mp3",
+  "undead": "assets/music/undead.mp3"
+};

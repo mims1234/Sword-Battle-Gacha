@@ -1,0 +1,10 @@
+{
+  "name": "Idle Blade Master",
+  "short_name": "Blade Master",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c090a",
+  "theme_color": "#0c090a",
+  "icons": [{ "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
