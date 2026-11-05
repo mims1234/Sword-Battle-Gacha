@@ -57,7 +57,7 @@
       items: { key: 0, elixir: 0, tonic: 0, warp: 0, charm: 0 }, buff: { gold: 0, dmg: 0 },
       shop: { receipts: [], first: {}, once: {}, passEnd: 0, passDay: "", freeDay: "" },
       gate: { day: "", wins: 0, dry: {} },
-      set: { sound: true, music: true, musicVol: 0.9, sfxVol: 0.3, volVer: 2, gfx: G.deviceGfx(), gfxVer: 2, calm: false, autoUlt: true, speed: 1 },
+      set: { sound: true, music: true, musicVol: 0.9, sfxVol: 0.3, volVer: 2, gfx: G.deviceGfx(), gfxVer: 2, calm: false, shake: false, autoUlt: true, speed: 1 },
       stat: { dmg: 0, ults: 0, legend: 0, wipes: 0, imps: 0, floors: 0, online: 0 },
       last: Date.now(), born: Date.now(),
     };

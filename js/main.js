@@ -1,7 +1,8 @@
 // ===================== BOOT + MAIN LOOP =====================
 (function () {
   const G = window.G;
-  let last = 0, hiddenAt = 0, saveT = 0, secT = 0;
+  let last = 0, hiddenAt = 0, saveT = 0, secT = 0, simAcc = 0;
+  const STEP = 1 / 60;
 
   function dispatch() {
     if (!G.ev.length) return;
@@ -20,8 +21,10 @@
   function loop(now) {
     const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
     G.frameEma = (G.frameEma || 16) * 0.97 + Math.min(100, dt * 1000) * 0.03; // smoothness check for the graphics suggestion
+    // The fight runs in even 1/60s steps whatever the screen's refresh rate, so x3 is three small
+    // steps per frame instead of one big jump. Leftover time carries over to the next frame.
     if (G.render.stop > 0) G.render.stop -= dt;
-    else { let t = dt * G.s.set.speed; while (t > 0) { const h = Math.min(0.05, t); G.step(h); t -= h; } }
+    else { simAcc += dt * G.s.set.speed; let n = 0; while (simAcc >= STEP && n < 40) { G.step(STEP); simAcc -= STEP; n++; } if (n >= 40) simAcc = 0; }
     if (!G.paused) G.onlineTick(dt);
     dispatch();
     G.render.frame(dt); G.ui.frame(now);
